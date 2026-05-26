@@ -96,3 +96,22 @@ Domain verification:
 - `playsgrid.org` does not resolve yet.
 - `www.playsgrid.org` does not resolve yet.
 - Vercel says DNS must be configured at the current DNS provider before the custom domains can serve the app.
+
+## 2026-05-26 - Deployment Repair Verification
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Vercel checks:
+- Latest checked production deployment was Ready.
+- Vercel project build logs show successful Next.js build.
+- Vercel environment variable list is empty. That is acceptable for the current browser-local app because Supabase is not connected yet.
+- Vercel runtime logs showed successful `GET /` status 200 responses and no 500/502 app errors.
+
+Domain checks:
+- `https://playsgrid.org` returns 200 and serves PlayGrid.
+- `https://www.playsgrid.org` returns 308 Permanent Redirect to `https://playsgrid.org/`.
+- HTTPS certificate for `playsgrid.org` and `www.playsgrid.org` was issued in Vercel.

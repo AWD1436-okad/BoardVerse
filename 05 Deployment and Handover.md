@@ -44,14 +44,15 @@ Current deployment status:
 
 Domain note:
 - `playsgrid.org` and `www.playsgrid.org` have been added to the Vercel project.
-- Vercel says the DNS is not configured yet.
 - Current nameservers are Cloudflare: `ashley.ns.cloudflare.com` and `camilo.ns.cloudflare.com`.
 - Safest DNS setup in Cloudflare:
   1. Add or update an `A` record for `playsgrid.org` pointing to `76.76.21.21`.
   2. Add or update an `A` record for `www.playsgrid.org` pointing to `76.76.21.21`, as requested by Vercel CLI.
   3. Keep proxy off if Vercel verification does not complete with proxy on.
 - `www.playsgrid.org` is configured in `vercel.json` to redirect permanently to `https://playsgrid.org`.
-- After DNS changes, Vercel will verify the domains and send an email when complete.
+- HTTPS is working for `playsgrid.org`.
+- `www.playsgrid.org` redirects permanently to `https://playsgrid.org/`.
+- Vercel issued an SSL certificate for `playsgrid.org` and `www.playsgrid.org`.
 
 Plain-English DNS steps for the owner:
 1. Open Cloudflare and select the `playsgrid.org` domain.
@@ -83,4 +84,4 @@ Code rollback should use Git and Vercel deployment history. Database rollback re
 - Auth and profile implementation.
 - Room and game implementation.
 - Admin dashboard.
-- Custom domain DNS verification for `playsgrid.org` and `www.playsgrid.org`.
+- Supabase production environment variables once real auth/database are implemented.
