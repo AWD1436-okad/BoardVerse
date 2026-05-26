@@ -32,9 +32,15 @@ The target host is Vercel. The standard flow will be:
 
 Current deployment status:
 - Local app is working.
-- GitHub remote is not configured yet.
-- Vercel project is not linked yet.
-- Production deployment has not been verified yet.
+- GitHub remote is `https://github.com/AWD1436-okad/BoardVerse.git`.
+- Vercel project is linked as `boardverse`.
+- Production deployment `dpl_9ubyE9koqkQjdatskZB5BK1i5vW4` is Ready.
+- Verified production URL: `https://boardverse-bice.vercel.app`.
+
+Domain note:
+- `profitplanet.win` is currently attached to another Vercel project named `tradex`.
+- `profitplanet.win` also shows a nameserver mismatch in Vercel, with Cloudflare nameservers active instead of Vercel nameservers.
+- BoardVerse was not assigned to `profitplanet.win` because moving an existing production domain away from another project can break that public site.
 
 ## Backups and Rollback
 
