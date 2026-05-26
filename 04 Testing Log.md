@@ -77,3 +77,22 @@ Known limits:
 - This milestone uses browser-local storage, not Supabase.
 - Account data and rooms do not sync across browsers or devices yet.
 - Match results do not update stats yet.
+
+## 2026-05-26 - Production Deployment and Domain Setup
+
+Checks run before deployment:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Deployment verification:
+- Vercel production deployment `dpl_9habiEpVKQBkxoDtpr5JDG7CcrFy` is Ready.
+- Current Vercel URL loads with title `PlayGrid — Online Board Games`.
+- Browser check found no console errors on the current Vercel URL.
+- `playsgrid.org` and `www.playsgrid.org` are attached to the Vercel project.
+
+Domain verification:
+- `playsgrid.org` does not resolve yet.
+- `www.playsgrid.org` does not resolve yet.
+- Vercel says DNS must be configured at the current DNS provider before the custom domains can serve the app.

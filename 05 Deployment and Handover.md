@@ -37,9 +37,10 @@ Current deployment status:
 - GitHub remote is `https://github.com/AWD1436-okad/BoardVerse.git`.
 - Vercel project is linked as `boardverse`.
 - Production deployment is Ready.
-- Current verified production URL: `https://boardverse-bice.vercel.app`.
+- Current verified Vercel URL: `https://boardverse-bice.vercel.app`.
 - Target public domain: `playsgrid.org`.
 - Secondary domain: `www.playsgrid.org`.
+- Latest production deployment ID: `dpl_9habiEpVKQBkxoDtpr5JDG7CcrFy`.
 
 Domain note:
 - `playsgrid.org` and `www.playsgrid.org` have been added to the Vercel project.
@@ -51,6 +52,20 @@ Domain note:
   3. Keep proxy off if Vercel verification does not complete with proxy on.
 - `www.playsgrid.org` is configured in `vercel.json` to redirect permanently to `https://playsgrid.org`.
 - After DNS changes, Vercel will verify the domains and send an email when complete.
+
+Plain-English DNS steps for the owner:
+1. Open Cloudflare and select the `playsgrid.org` domain.
+2. Go to DNS.
+3. Add or edit the root record:
+   - Type: `A`
+   - Name: `@`
+   - IPv4 address: `76.76.21.21`
+4. Add or edit the www record:
+   - Type: `A`
+   - Name: `www`
+   - IPv4 address: `76.76.21.21`
+5. If Vercel verification does not complete, turn Cloudflare proxy off for these records by setting them to DNS only.
+6. Return to Vercel project settings, open Domains, and wait until both domains show valid/ready.
 
 ## Backups and Rollback
 
@@ -68,4 +83,4 @@ Code rollback should use Git and Vercel deployment history. Database rollback re
 - Auth and profile implementation.
 - Room and game implementation.
 - Admin dashboard.
-- Custom domain DNS verification for `playsgrid.org`.
+- Custom domain DNS verification for `playsgrid.org` and `www.playsgrid.org`.
