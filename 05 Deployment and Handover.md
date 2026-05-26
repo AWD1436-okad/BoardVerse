@@ -40,7 +40,7 @@ Current deployment status:
 - Current verified Vercel URL: `https://boardverse-bice.vercel.app`.
 - Target public domain: `playsgrid.org`.
 - Secondary domain: `www.playsgrid.org`.
-- Latest production deployment ID: `dpl_9habiEpVKQBkxoDtpr5JDG7CcrFy`.
+- Latest production deployment ID should be checked in the final deployment report or with `vercel inspect`, because each production deploy creates a new ID.
 
 Domain note:
 - `playsgrid.org` and `www.playsgrid.org` have been added to the Vercel project.
