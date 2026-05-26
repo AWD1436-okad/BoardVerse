@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.playsgrid.org"
+        }
+      ],
+      "destination": "https://playsgrid.org/:path*",
+      "permanent": true
+    }
+  ]
+}

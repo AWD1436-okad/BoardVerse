@@ -48,7 +48,7 @@ What works now:
 - Dashboard shows profile, XP, level, fake money balance, and game totals.
 - Rooms created in the browser persist in local storage.
 - Logout and returning login work.
-- The public metadata title is now `PlayGrid - Online Board Games`.
+- The public metadata title is now `PlayGrid — Online Board Games`.
 
 Still not production-real:
 - Supabase auth is not connected yet.

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PlayGrid - Online Board Games",
+  title: "PlayGrid — Online Board Games",
   description:
     "PlayGrid is a browser-based online board-game hub for casual play with friends.",
 };
