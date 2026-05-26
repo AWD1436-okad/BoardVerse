@@ -34,7 +34,7 @@ Current deployment status:
 - Local app is working.
 - GitHub remote is `https://github.com/AWD1436-okad/BoardVerse.git`.
 - Vercel project is linked as `boardverse`.
-- Production deployment `dpl_9ubyE9koqkQjdatskZB5BK1i5vW4` is Ready.
+- Production deployment is Ready.
 - Verified production URL: `https://boardverse-bice.vercel.app`.
 
 Domain note:
