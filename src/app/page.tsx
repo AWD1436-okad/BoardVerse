@@ -1,5 +1,5 @@
-import { BoardVerseApp } from "./boardverse-app";
+import { PlayGridApp } from "./playgrid-app";
 
 export default function Home() {
-  return <BoardVerseApp />;
+  return <PlayGridApp />;
 }

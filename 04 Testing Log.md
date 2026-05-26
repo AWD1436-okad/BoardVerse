@@ -48,3 +48,32 @@ Browser flow tested locally at `http://localhost:3000`:
 Known limits:
 - Auth, rooms, and invite-code joining are local placeholder flows only.
 - No real database, realtime, chat, friends, admin, bots, timers, or games are connected yet.
+
+## 2026-05-26 - PlayGrid Rebrand and Persistent Account Foundation
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed after fixing local-storage state loading.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Browser flow tested locally at `http://localhost:3000`:
+- Opened the PlayGrid auth screen.
+- Created a new local browser account.
+- Completed first-time profile setup with a preset profile pic.
+- Reached the dashboard.
+- Confirmed the dashboard shows level, XP, balance, and games.
+- Selected `Sky Plaza`.
+- Created a room named `Persistent Room`.
+- Refreshed the page and confirmed the user session still loads.
+- Returned to `Sky Plaza` and confirmed `Persistent Room` was still saved.
+- Logged out.
+- Logged back in with the same local account.
+- Checked mobile viewport at 390 x 844 with no horizontal overflow.
+- Fixed and retested a hydration mismatch caused by reading local storage during first render.
+- Checked browser console errors after the fix: none found.
+
+Known limits:
+- This milestone uses browser-local storage, not Supabase.
+- Account data and rooms do not sync across browsers or devices yet.
+- Match results do not update stats yet.

@@ -2,7 +2,8 @@
 
 ## Locked Decisions
 
-- Product name: BoardVerse.
+- Product name: PlayGrid.
+- Old working name: BoardVerse.
 - Public subtitle: Online Board Games.
 - Browser app first; mobile app later.
 - MVP is casual only. Ranked mode is later.
@@ -23,6 +24,7 @@
 
 ## Open Risks
 
-- Public URLs currently point to Profit Planet/Bazaarly domains. BoardVerse may eventually need its own domain.
+- Public domain target is now `playsgrid.org`.
+- Current Vercel deployment is still on a generated Vercel URL until `playsgrid.org` is connected.
 - Supabase and Vercel access may require login or project setup outside the codebase.
 - Realtime multiplayer and timer behavior must be tested carefully because browser refreshes and disconnects are high-risk flows.

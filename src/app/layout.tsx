@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BoardVerse - Online Board Games",
+  title: "PlayGrid - Online Board Games",
   description:
-    "BoardVerse is a browser-based online board-game hub for realtime casual play with friends.",
+    "PlayGrid is a browser-based online board-game hub for casual play with friends.",
 };
 
 export default function RootLayout({

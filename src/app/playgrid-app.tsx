@@ -1,11 +1,28 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Screen = "auth" | "profile" | "app";
 type AuthMode = "signup" | "login";
 type AppView = "dashboard" | "lobbies" | "rooms";
 type Game = "Tic Tac Toe" | "Connect Four" | "Dots and Boxes";
+
+type PlayerStats = {
+  xp: number;
+  level: number;
+  balance: number;
+  gamesPlayed: number;
+  wins: number;
+  losses: number;
+  draws: number;
+};
+
+type LocalAccount = {
+  username: string;
+  password: string;
+  profilePic: string;
+  stats: PlayerStats;
+};
 
 type Room = {
   id: number;
@@ -15,6 +32,21 @@ type Room = {
   isPrivate: boolean;
   inviteCode: string;
   status: "waiting";
+  host: string;
+};
+
+const accountsKey = "playgrid.accounts.v1";
+const sessionKey = "playgrid.session.v1";
+const roomsKey = "playgrid.rooms.v1";
+
+const emptyStats: PlayerStats = {
+  xp: 0,
+  level: 1,
+  balance: 0,
+  gamesPlayed: 0,
+  wins: 0,
+  losses: 0,
+  draws: 0,
 };
 
 const profilePics = [
@@ -45,7 +77,7 @@ const gameOptions: Record<Game, string> = {
   "Dots and Boxes": "2-4 players",
 };
 
-const initialRooms: Room[] = [
+const defaultRooms: Room[] = [
   {
     id: 1,
     name: "Starter Table",
@@ -54,6 +86,7 @@ const initialRooms: Room[] = [
     isPrivate: false,
     inviteCode: "TIC-204",
     status: "waiting",
+    host: "System",
   },
   {
     id: 2,
@@ -63,10 +96,32 @@ const initialRooms: Room[] = [
     isPrivate: true,
     inviteCode: "DOT-442",
     status: "waiting",
+    host: "System",
   },
 ];
 
-export function BoardVerseApp() {
+function readJson<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
+export function PlayGridApp() {
+  const [loaded, setLoaded] = useState(false);
+  const [accounts, setAccounts] = useState<Record<string, LocalAccount>>({});
+  const [rooms, setRooms] = useState<Room[]>(defaultRooms);
+  const [currentUserKey, setCurrentUserKey] = useState("");
   const [screen, setScreen] = useState<Screen>("auth");
   const [authMode, setAuthMode] = useState<AuthMode>("signup");
   const [view, setView] = useState<AppView>("dashboard");
@@ -74,16 +129,19 @@ export function BoardVerseApp() {
   const [password, setPassword] = useState("");
   const [selectedPic, setSelectedPic] = useState(profilePics[0].id);
   const [selectedLobby, setSelectedLobby] = useState(lobbies[0]);
-  const [rooms, setRooms] = useState(initialRooms);
-  const [activeRoomId, setActiveRoomId] = useState(initialRooms[0].id);
+  const [activeRoomId, setActiveRoomId] = useState(defaultRooms[0].id);
   const [roomName, setRoomName] = useState("Family Table");
   const [roomGame, setRoomGame] = useState<Game>("Tic Tac Toe");
   const [privateRoom, setPrivateRoom] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [notice, setNotice] = useState("");
 
-  const displayName = username.trim() || "DemoPlayer";
-  const selectedProfilePic = profilePics.find((pic) => pic.id === selectedPic);
+  const currentAccount = currentUserKey ? accounts[currentUserKey] : undefined;
+  const displayName = currentAccount?.username || username.trim() || "Player";
+  const stats = currentAccount?.stats ?? emptyStats;
+  const selectedProfilePic = profilePics.find(
+    (pic) => pic.id === (currentAccount?.profilePic || selectedPic),
+  );
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? rooms[0];
   const formReady = username.trim().length >= 3 && password.length >= 4;
 
@@ -92,22 +150,113 @@ export function BoardVerseApp() {
     [rooms, selectedLobby],
   );
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const savedAccounts = readJson<Record<string, LocalAccount>>(accountsKey, {});
+      const savedRooms = readJson<Room[]>(roomsKey, defaultRooms);
+      const savedSession = window.localStorage.getItem(sessionKey) || "";
+
+      setAccounts(savedAccounts);
+      setRooms(savedRooms.length > 0 ? savedRooms : defaultRooms);
+
+      if (savedSession && savedAccounts[savedSession]) {
+        setCurrentUserKey(savedSession);
+        setScreen(savedAccounts[savedSession].profilePic ? "app" : "profile");
+      }
+
+      setLoaded(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) {
+      return;
+    }
+
+    window.localStorage.setItem(accountsKey, JSON.stringify(accounts));
+  }, [accounts, loaded]);
+
+  useEffect(() => {
+    if (!loaded) {
+      return;
+    }
+
+    window.localStorage.setItem(roomsKey, JSON.stringify(rooms));
+  }, [loaded, rooms]);
+
   function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const userKey = normalizeUsername(username);
 
     if (!formReady) {
       setNotice("Use a username with 3+ characters and a password with 4+ characters.");
       return;
     }
 
-    setNotice("");
-    setScreen("profile");
+    if (authMode === "signup") {
+      if (accounts[userKey]) {
+        setNotice("That username already exists in this browser. Log in instead.");
+        return;
+      }
+
+      setAccounts({
+        ...accounts,
+        [userKey]: {
+          username: username.trim(),
+          password,
+          profilePic: "",
+          stats: emptyStats,
+        },
+      });
+      setCurrentUserKey(userKey);
+      window.localStorage.setItem(sessionKey, userKey);
+      setNotice("");
+      setScreen("profile");
+      return;
+    }
+
+    const account = accounts[userKey];
+    if (!account || account.password !== password) {
+      setNotice("Username or password did not match a local PlayGrid account.");
+      return;
+    }
+
+    setCurrentUserKey(userKey);
+    window.localStorage.setItem(sessionKey, userKey);
+    setSelectedPic(account.profilePic || profilePics[0].id);
+    setNotice("Logged in.");
+    setScreen(account.profilePic ? "app" : "profile");
+    setView("dashboard");
   }
 
   function completeProfile() {
+    if (!currentUserKey || !accounts[currentUserKey]) {
+      setNotice("Create or log in to an account first.");
+      setScreen("auth");
+      return;
+    }
+
+    setAccounts({
+      ...accounts,
+      [currentUserKey]: {
+        ...accounts[currentUserKey],
+        profilePic: selectedPic,
+      },
+    });
     setScreen("app");
     setView("dashboard");
     setNotice("Profile setup complete.");
+  }
+
+  function logOut() {
+    window.localStorage.removeItem(sessionKey);
+    setCurrentUserKey("");
+    setPassword("");
+    setScreen("auth");
+    setAuthMode("login");
+    setNotice("Logged out.");
   }
 
   function createRoom(event: FormEvent<HTMLFormElement>) {
@@ -119,12 +268,13 @@ export function BoardVerseApp() {
 
     const room: Room = {
       id: Date.now(),
-      name: roomName.trim() || "BoardVerse Room",
+      name: roomName.trim() || "PlayGrid Room",
       lobby: selectedLobby,
       game: roomGame,
       isPrivate: privateRoom,
       inviteCode: code,
       status: "waiting",
+      host: displayName,
     };
 
     setRooms([room, ...rooms]);
@@ -140,7 +290,7 @@ export function BoardVerseApp() {
     const room = rooms.find((item) => item.inviteCode === code);
 
     if (!room) {
-      setNotice("No room found for that invite code in this local placeholder.");
+      setNotice("No room found for that invite code in this browser.");
       return;
     }
 
@@ -159,6 +309,16 @@ export function BoardVerseApp() {
     setView("rooms");
   }
 
+  if (!loaded) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[#07111f] px-4 text-white">
+        <p className="font-mono text-sm uppercase tracking-[0.2em] text-cyan-200">
+          Loading PlayGrid
+        </p>
+      </main>
+    );
+  }
+
   if (screen === "auth") {
     return (
       <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#174a74_0,#07111f_42%,#050816_100%)] px-4 py-6 text-white">
@@ -168,11 +328,11 @@ export function BoardVerseApp() {
               Online Board Games
             </p>
             <h1 className="max-w-3xl text-5xl font-black leading-[0.96] sm:text-7xl">
-              BoardVerse
+              PlayGrid
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">
-              A clickable MVP shell for accounts, profile setup, lobby browsing,
-              and room setup.
+              Create a profile, choose a lobby, and set up board-game rooms from
+              your browser.
             </p>
           </div>
 
@@ -204,7 +364,8 @@ export function BoardVerseApp() {
               {authMode === "signup" ? "Create Account" : "Log In"}
             </h2>
             <p className="mt-2 text-sm text-slate-300">
-              This is local placeholder auth until Supabase is connected.
+              Use a test password. This milestone saves accounts in this browser
+              until Supabase auth is connected.
             </p>
 
             <label className="mt-5 block text-sm font-bold" htmlFor="username">
@@ -238,7 +399,7 @@ export function BoardVerseApp() {
               disabled={!formReady}
               type="submit"
             >
-              Continue to Profile Setup
+              {authMode === "signup" ? "Continue to Profile Setup" : "Log In"}
             </button>
           </form>
         </section>
@@ -305,13 +466,20 @@ export function BoardVerseApp() {
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200">
               Online Board Games
             </p>
-            <h1 className="text-xl font-black">BoardVerse</h1>
+            <h1 className="text-xl font-black">PlayGrid</h1>
           </div>
           <div className="flex items-center gap-3">
             <span
               className={`hidden h-9 w-9 bg-gradient-to-br sm:block ${selectedProfilePic?.colors}`}
             />
             <span className="font-bold">{displayName}</span>
+            <button
+              className="border border-white/15 px-3 py-2 text-xs font-bold"
+              onClick={logOut}
+              type="button"
+            >
+              Log Out
+            </button>
           </div>
         </div>
       </header>
@@ -338,7 +506,7 @@ export function BoardVerseApp() {
           <button
             className="cursor-not-allowed border border-white/15 bg-white/5 px-4 py-3 text-left font-black text-slate-500"
             disabled
-            title="Friends need the backend account system first."
+            title="Friends need backend account search first."
             type="button"
           >
             Friends - backend needed
@@ -366,10 +534,27 @@ export function BoardVerseApp() {
                 <p className="text-sm text-cyan-200">Dashboard</p>
                 <h2 className="text-3xl font-black">Welcome, {displayName}</h2>
                 <p className="mt-2 text-slate-300">
-                  Your basic app shell is clickable. Choose a lobby or create a
-                  room to test the foundation flow.
+                  Your account, profile pic, rooms, and session now persist in
+                  this browser.
                 </p>
               </section>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                {[
+                  ["Level", stats.level],
+                  ["XP", stats.xp],
+                  ["Balance", `$${stats.balance}`],
+                  ["Games", stats.gamesPlayed],
+                ].map(([label, value]) => (
+                  <div className="border border-white/15 bg-white/8 p-4" key={label}>
+                    <div className="font-mono text-2xl font-black text-yellow-200">
+                      {value}
+                    </div>
+                    <div className="mt-1 text-xs font-bold uppercase text-slate-300">
+                      {label}
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <button
                   className="border border-white/15 bg-white/8 p-4 text-left"
@@ -388,17 +573,17 @@ export function BoardVerseApp() {
                 >
                   <h3 className="text-lg font-black">Create Room</h3>
                   <p className="mt-1 text-sm text-slate-300">
-                    Make a local placeholder room.
+                    Make a browser-saved room.
                   </p>
                 </button>
                 <button
                   className="cursor-not-allowed border border-white/15 bg-white/5 p-4 text-left text-slate-500"
                   disabled
-                  title="Stats need real saved match results first."
+                  title="Stats change when match results are implemented."
                   type="button"
                 >
-                  <h3 className="text-lg font-black">Stats</h3>
-                  <p className="mt-1 text-sm">Needs saved matches.</p>
+                  <h3 className="text-lg font-black">Match History</h3>
+                  <p className="mt-1 text-sm">Needs finished matches.</p>
                 </button>
               </div>
             </div>
@@ -448,7 +633,7 @@ export function BoardVerseApp() {
                 <div>
                   <h2 className="text-3xl font-black">Rooms</h2>
                   <p className="mt-2 text-slate-300">
-                    Showing local placeholder rooms for {selectedLobby}.
+                    Showing browser-saved rooms for {selectedLobby}.
                   </p>
                 </div>
                 <div className="grid gap-3">
@@ -479,8 +664,8 @@ export function BoardVerseApp() {
                         </span>
                       </div>
                       <p className="mt-3 text-sm text-slate-300">
-                        {room.isPrivate ? "Private" : "Public"} | Invite code:{" "}
-                        {room.inviteCode}
+                        Host: {room.host} | {room.isPrivate ? "Private" : "Public"} |
+                        Invite code: {room.inviteCode}
                       </p>
                     </button>
                   ))}
@@ -557,7 +742,7 @@ export function BoardVerseApp() {
                   <button
                     className="cursor-not-allowed border border-white/15 bg-white/5 px-4 py-3 text-left font-black text-slate-500"
                     disabled
-                    title="Starting matches needs the real game engine."
+                    title="Starting matches needs the game engine milestone."
                     type="button"
                   >
                     Start Match - needs game engine
@@ -565,7 +750,7 @@ export function BoardVerseApp() {
                   <button
                     className="cursor-not-allowed border border-white/15 bg-white/5 px-4 py-3 text-left font-black text-slate-500"
                     disabled
-                    title="Friend invites need real accounts first."
+                    title="Friend invites need backend account search."
                     type="button"
                   >
                     Invite Friend - needs accounts

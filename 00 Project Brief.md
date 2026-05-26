@@ -1,6 +1,8 @@
-# BoardVerse Project Brief
+# PlayGrid Project Brief
 
-BoardVerse is an online-only multiplayer board-game platform with the public subtitle "Online Board Games".
+PlayGrid is an online-only multiplayer board-game platform with the public subtitle "Online Board Games".
+
+Brand note: BoardVerse was the old working name. PlayGrid is now the public product name.
 
 The MVP is a browser-based web app for computer and phone browsers. Users will create username/password accounts, complete first-time profile setup, choose preset profile pics, enter visual lobby areas, create or join public/private rooms, invite friends, chat safely, spectate games, add bots, and play simple board games with realtime turns.
 
@@ -24,7 +26,7 @@ Public product language must not mention halal, Islam, religion, or religious fi
 
 ## Fake Money Rules
 
-BoardVerse fake money is game-only and has no real-world value. There are no real-money purchases, cash-out features, or gambling-style mechanics.
+PlayGrid fake money is game-only and has no real-world value. There are no real-money purchases, cash-out features, or gambling-style mechanics.
 
 Rewards:
 - Loss: $1

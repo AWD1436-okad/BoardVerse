@@ -2,7 +2,9 @@
 
 ## Product Summary
 
-BoardVerse is a browser-based online board-game platform for casual realtime play with friends, rooms, spectators, bots, safe chat, reports, admin tools, and match rewards.
+PlayGrid is a browser-based online board-game platform for casual realtime play with friends, rooms, spectators, bots, safe chat, reports, admin tools, and match rewards.
+
+Brand note: BoardVerse was the old working name. PlayGrid is now the public product name.
 
 ## How To Run Locally
 
@@ -35,12 +37,11 @@ Current deployment status:
 - GitHub remote is `https://github.com/AWD1436-okad/BoardVerse.git`.
 - Vercel project is linked as `boardverse`.
 - Production deployment is Ready.
-- Verified production URL: `https://boardverse-bice.vercel.app`.
+- Current verified production URL: `https://boardverse-bice.vercel.app`.
+- Target public domain: `playsgrid.org`.
 
 Domain note:
-- `profitplanet.win` is currently attached to another Vercel project named `tradex`.
-- `profitplanet.win` also shows a nameserver mismatch in Vercel, with Cloudflare nameservers active instead of Vercel nameservers.
-- BoardVerse was not assigned to `profitplanet.win` because moving an existing production domain away from another project can break that public site.
+- `playsgrid.org` still needs to be connected to the Vercel project.
 
 ## Backups and Rollback
 

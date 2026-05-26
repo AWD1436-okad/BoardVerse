@@ -1,6 +1,6 @@
-# BoardVerse Agent Instructions
+# PlayGrid Agent Instructions
 
-Work as the end-to-end software lead for BoardVerse.
+Work as the end-to-end software lead for PlayGrid. BoardVerse was the old working name.
 
 Before future work, read these project memory files:
 - `00 Project Brief.md`
