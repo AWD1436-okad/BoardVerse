@@ -164,3 +164,53 @@ Production account tests:
 Result:
 - Account system passes production verification.
 - Milestone 3 is approved to begin.
+
+## 2026-06-15 - Milestone 3 Private Rooms
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Database checks:
+- Added `supabase/final-answer-room-schema.sql`.
+- Applied the schema to Supabase project `chhdhlmnlocxwgqdqfip`.
+- Verified `rooms` and `room_players` exist.
+- Verified RLS is enabled on both room tables.
+- Verified `service_role` has select, insert, update, and delete grants for both room tables.
+- Requested a PostgREST schema reload.
+
+Production API tests at `https://playsgrid.org`:
+- Logged-out user cannot create a room: passed with `401 not_logged_in`.
+- Logged-out user cannot join a room: passed with `401 not_logged_in`.
+- Logged-in user can create a room: passed.
+- Room code is generated: passed.
+- Second logged-in user can join by code: passed.
+- Invalid room code is blocked: passed with `400 invalid_room_code`.
+- Valid-format missing room code is blocked: passed with `404 room_not_found`.
+- Room full is blocked: passed with `409 room_full`.
+- Start is blocked before players are ready: passed with `409 not_all_ready`.
+- Ready state updates for both players: passed.
+- Start becomes valid only when the room is full and all active players are ready: passed.
+- Host can start a valid room: passed; status moved to `in_game`.
+- Player leaving after `in_game` is marked as `leftDuringGame`: passed.
+- Player who left after `in_game` cannot rejoin that game: passed with `409 game_already_started`.
+- Host leaving before the game starts transfers host to the next remaining player: passed.
+- Player who left before the game starts can rejoin by code: passed.
+
+Production browser tests at `https://playsgrid.org`:
+- Public page loads with title `Final Answer | Private Quiz Game`.
+- Browser signup through the Create Account form works.
+- Create Room opens the real create-room form.
+- A room can be created from the browser UI.
+- The lobby shows the room code, waiting status, player count, host badge, ready status, Ready button, disabled Start Game button, Refresh Room, and Leave Room.
+- Ready button toggles to Not Ready.
+- Start Game stays disabled when only the host is in a 2-player room.
+- Mobile viewport check at 390 x 844 for the room lobby has no horizontal overflow.
+- Browser console errors: none found.
+
+Known limits:
+- Chat is not part of Milestone 3.
+- Starting the room only changes status to `in_game`; Fastest Finger First starts in a later milestone.
+- Room lobby state is not automatically restored after a full browser reload; users can rejoin by room code while the room is still waiting.

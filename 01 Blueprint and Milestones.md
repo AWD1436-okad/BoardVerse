@@ -55,7 +55,7 @@ Security requirements:
 - Add a polished Final Answer landing/auth shell.
 - Keep deployment domain working.
 
-### Milestone 2 - Real Accounts and Profiles - Code Complete, Awaiting Supabase Setup
+### Milestone 2 - Real Accounts and Profiles - Completed 2026-06-15
 
 - Add database-backed account creation.
 - Store username, display name, and hashed 4-digit PIN.
@@ -65,9 +65,9 @@ Security requirements:
 
 Implementation note:
 - Account API routes, server-side PIN hashing, HTTP-only session cookies, login lockout tracking, and the profile/stats UI have been added.
-- Real account persistence requires the Supabase SQL schema and environment variables listed in `05 Deployment and Handover.md`.
+- Supabase account tables, Vercel environment variables, and production account verification are complete.
 
-### Milestone 3 - Private Rooms and Lobby Readiness
+### Milestone 3 - Private Rooms and Lobby Readiness - Completed 2026-06-15
 
 - Create private rooms with room codes.
 - Join room by code.
@@ -75,6 +75,12 @@ Implementation note:
 - Ready/unready system.
 - Host transfer when host leaves.
 - Prevent public room lists.
+
+Implementation note:
+- Private rooms are stored in Supabase tables `rooms` and `room_players`.
+- Room actions run through server API routes so the Supabase secret key stays server-only.
+- Room lobbies use simple polling for now; Supabase Realtime can replace or supplement this in the game-state milestone.
+- Starting a room currently changes the room status to `in_game`; Fastest Finger First and gameplay are intentionally not built until later milestones.
 
 ### Milestone 4 - Question Database and Reporting
 

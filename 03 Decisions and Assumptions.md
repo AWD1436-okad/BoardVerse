@@ -28,11 +28,15 @@
 - Hash PINs server-side before database storage.
 - Use HTTP-only session cookies with hashed session tokens stored in Supabase.
 - Lock a username for 10 minutes after 5 failed login attempts.
+- Store private rooms in Supabase `rooms` and `room_players` tables.
+- Keep room creation, joining, ready changes, leaving, and start checks behind server API routes so room rules are enforced consistently.
+- Use simple room polling for the lobby foundation; realtime updates can be added when game state becomes richer.
+- Keep chat out of Milestone 3 to avoid adding moderation and safety scope before the lobby foundation is stable.
 
 ## Open Risks
 
-- Supabase project and environment variables are not currently configured in Vercel.
 - Fair timing for Fastest Finger First needs careful server-side design.
 - Large AI-generated question set needs quality review to avoid wrong, ambiguous, political, person-focused, religious, or overly obscure questions.
 - 4-digit PIN accounts are simple for family use but weaker than full passwords, so rate limiting and careful storage matter.
 - The Vercel project name is still `boardverse`; this is not public-facing but may be renamed later for clarity.
+- Room lobby updates currently poll. This is acceptable for Milestone 3, but faster game screens should use server-backed realtime or tighter polling.

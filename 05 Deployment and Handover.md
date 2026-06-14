@@ -13,7 +13,7 @@ The previous PlayGrid board-game product is retired and can be replaced.
 - Hosting: Vercel.
 - Vercel project currently linked as `boardverse`.
 - GitHub remote: `https://github.com/AWD1436-okad/BoardVerse.git`.
-- Current public app: Final Answer Milestone 1 foundation.
+- Current public app: Final Answer through Milestone 3 private rooms.
 
 ## How To Run Locally
 
@@ -56,6 +56,13 @@ Tables:
 - `account_login_attempts`
 - `account_sessions`
 
+Milestone 3 room tables are defined in:
+- `supabase/final-answer-room-schema.sql`
+
+Tables:
+- `rooms`
+- `room_players`
+
 Plain-English Supabase setup:
 1. Open Supabase and create a project, or open the existing project you want to use.
 2. Go to SQL Editor.
@@ -66,6 +73,12 @@ Plain-English Supabase setup:
 7. Copy the publishable key into Vercel as `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 8. Copy the server-side secret key into Vercel as `SUPABASE_SECRET_KEY`.
 9. Redeploy the Vercel production app.
+
+Room setup:
+1. Open Supabase SQL Editor.
+2. Run `supabase/final-answer-room-schema.sql`.
+3. Confirm `rooms` and `room_players` exist.
+4. Redeploy the Vercel production app if this schema was added after code deployment.
 
 Important:
 - Do not paste Supabase keys into chat.
@@ -88,5 +101,7 @@ Standard production flow:
 - The live app should now show the Final Answer foundation after the latest production deployment.
 - Final Answer Milestone 1 is implemented.
 - Milestone 2 account code is implemented, deployed, connected to Supabase, and production-verified.
-- No real rooms, realtime state, questions, reports, or gameplay stats updates exist yet.
+- Milestone 3 private rooms are implemented, deployed, connected to Supabase, and production-verified.
+- No chat, realtime game state, questions, reports, or gameplay stats updates exist yet.
+- Starting a room only moves the room to `in_game`; Fastest Finger First and hot-seat gameplay are pending.
 - Full 1,200-question generation/import process still needs implementation and review.

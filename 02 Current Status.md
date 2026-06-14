@@ -88,3 +88,30 @@ Current status:
 
 Next milestone:
 - Milestone 3: private rooms and lobby readiness is approved to begin.
+
+## 2026-06-15 - Milestone 3 Private Rooms Completed
+
+Milestone 3 has added real private rooms on top of the production account system.
+
+What works now:
+- Logged-in users can create private rooms.
+- Logged-in users can join private rooms by a 6-character room code.
+- There is no public room list.
+- Hosts choose a player count from 2 to 10.
+- The room lobby shows the room code, room status, selected player count, active player count, display names, usernames, ready state, and host badge.
+- Players can switch between Ready and Not Ready.
+- Start Game is blocked until the room has exactly the selected number of active players and all active players are ready.
+- When the room is valid, the host can start it and the room moves to `in_game`.
+- If the host leaves before the game starts, the next remaining active player becomes host.
+- A player who leaves before the game starts can rejoin by code.
+- A player who leaves after the room is `in_game` is marked as having left during the game and cannot rejoin that game.
+- Clear error messages exist for must be logged in, invalid room code, room not found, room full, game already started, and start-blocked states.
+
+What is still not built:
+- Chat is intentionally not included in Milestone 3.
+- Fastest Finger First is not started yet.
+- Hot-seat gameplay, lifelines, question database, question reports, final rankings, and stats updates are still pending.
+- Room updates currently use simple polling rather than a full realtime channel.
+
+Next milestone:
+- Milestone 4: question database and report-question foundation.
