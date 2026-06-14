@@ -2,9 +2,17 @@
 
 ## Product Summary
 
-PlayGrid is a browser-based online board-game platform for casual realtime play with friends, rooms, spectators, bots, safe chat, reports, admin tools, and match rewards.
+Final Answer is a private browser-based quiz game for friends and family. Players create simple accounts, join private rooms by code, compete in Fastest Finger First, take hot-seat turns through a 12-level money ladder, use lifelines, and compare final results.
 
-Brand note: BoardVerse was the old working name. PlayGrid is now the public product name.
+The previous PlayGrid board-game product is retired and can be replaced.
+
+## Current Hosting
+
+- Domain: `https://playsgrid.org`.
+- `www` redirects to the apex domain.
+- Hosting: Vercel.
+- Vercel project currently linked as `boardverse`.
+- GitHub remote: `https://github.com/AWD1436-okad/BoardVerse.git`.
 
 ## How To Run Locally
 
@@ -14,74 +22,35 @@ Brand note: BoardVerse was the old working name. PlayGrid is now the public prod
 
 ## Required Environment Variables
 
-These are expected later when Supabase is connected:
-- `NEXT_PUBLIC_SUPABASE_URL`: public Supabase project URL.
+Not configured yet.
+
+Expected later:
+- `NEXT_PUBLIC_SUPABASE_URL`: browser-safe Supabase project URL.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: browser-safe Supabase publishable key.
-- Server-only Supabase/admin secrets may be needed for protected admin operations and must never be exposed in browser code.
+- Server-only Supabase/admin secrets if protected server operations need them.
 
-## Data Storage
+Secrets must not be committed to code or normal notes.
 
-MVP data will be stored in Supabase Postgres with Row Level Security.
+## Data Storage Plan
+
+Use Supabase Postgres for accounts, rooms, game state, questions, question reports, and stats. PINs must be hashed before storage.
 
 ## Deployment Plan
 
-The target host is Vercel. The standard flow will be:
-1. Commit code to Git.
-2. Push to GitHub `main`.
-3. Let Vercel build and deploy.
-4. Verify the production deployment is Ready.
-5. Browser-check the live public link.
+Standard production flow:
+1. Make code changes.
+2. Run checks.
+3. Commit to Git.
+4. Push to GitHub `main`.
+5. Deploy to Vercel production.
+6. Verify Vercel status is Ready.
+7. Browser-check `https://playsgrid.org`.
 
-Current deployment status:
-- Local app is working.
-- GitHub remote is `https://github.com/AWD1436-okad/BoardVerse.git`.
-- Vercel project is linked as `boardverse`.
-- Production deployment is Ready.
-- Current verified Vercel URL: `https://boardverse-bice.vercel.app`.
-- Target public domain: `playsgrid.org`.
-- Secondary domain: `www.playsgrid.org`.
-- Latest production deployment ID should be checked in the final deployment report or with `vercel inspect`, because each production deploy creates a new ID.
+## Current Known Limitations
 
-Domain note:
-- `playsgrid.org` and `www.playsgrid.org` have been added to the Vercel project.
-- Current nameservers are Cloudflare: `ashley.ns.cloudflare.com` and `camilo.ns.cloudflare.com`.
-- Safest DNS setup in Cloudflare:
-  1. Add or update an `A` record for `playsgrid.org` pointing to `76.76.21.21`.
-  2. Add or update an `A` record for `www.playsgrid.org` pointing to `76.76.21.21`, as requested by Vercel CLI.
-  3. Keep proxy off if Vercel verification does not complete with proxy on.
-- `www.playsgrid.org` is configured in `vercel.json` to redirect permanently to `https://playsgrid.org`.
-- HTTPS is working for `playsgrid.org`.
-- `www.playsgrid.org` redirects permanently to `https://playsgrid.org/`.
-- Vercel issued an SSL certificate for `playsgrid.org` and `www.playsgrid.org`.
+- The live app still shows the old PlayGrid placeholder.
+- Final Answer has not been implemented yet.
+- Supabase is not configured.
+- No real accounts, rooms, realtime state, questions, reports, or stats exist yet.
+- Full 1,200-question generation/import process still needs implementation and review.
 
-Plain-English DNS steps for the owner:
-1. Open Cloudflare and select the `playsgrid.org` domain.
-2. Go to DNS.
-3. Add or edit the root record:
-   - Type: `A`
-   - Name: `@`
-   - IPv4 address: `76.76.21.21`
-4. Add or edit the www record:
-   - Type: `A`
-   - Name: `www`
-   - IPv4 address: `76.76.21.21`
-5. If Vercel verification does not complete, turn Cloudflare proxy off for these records by setting them to DNS only.
-6. Return to Vercel project settings, open Domains, and wait until both domains show valid/ready.
-
-## Backups and Rollback
-
-Code rollback should use Git and Vercel deployment history. Database rollback requires Supabase backups and reviewed migrations.
-
-## Common Problems
-
-- PowerShell may block `npm` or `npx` scripts. Use `npm.cmd` and `npx.cmd`.
-- Missing Supabase environment variables will block connected auth/data features.
-- Vercel deployment needs project linking and account access before production verification can be completed.
-
-## Still Optional or Unfinished
-
-- Supabase project setup.
-- Auth and profile implementation.
-- Room and game implementation.
-- Admin dashboard.
-- Supabase production environment variables once real auth/database are implemented.
