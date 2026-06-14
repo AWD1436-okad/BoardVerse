@@ -24,6 +24,10 @@
 - Use server-side routes/actions for account creation and PIN verification.
 - Use Supabase Realtime or a simple server-backed realtime approach for rooms and game state.
 - Start with a small seeded question set for development, then import/generate the full 1,200-question database after the schema and review process are ready.
+- Use a custom username/PIN account table for Final Answer instead of Supabase Auth email/password, because this private family app requires username plus 4-digit PIN.
+- Hash PINs server-side before database storage.
+- Use HTTP-only session cookies with hashed session tokens stored in Supabase.
+- Lock a username for 10 minutes after 5 failed login attempts.
 
 ## Open Risks
 
@@ -32,4 +36,3 @@
 - Large AI-generated question set needs quality review to avoid wrong, ambiguous, political, person-focused, religious, or overly obscure questions.
 - 4-digit PIN accounts are simple for family use but weaker than full passwords, so rate limiting and careful storage matter.
 - The Vercel project name is still `boardverse`; this is not public-facing but may be renamed later for clarity.
-

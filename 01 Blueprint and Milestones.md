@@ -55,13 +55,17 @@ Security requirements:
 - Add a polished Final Answer landing/auth shell.
 - Keep deployment domain working.
 
-### Milestone 2 - Real Accounts and Profiles
+### Milestone 2 - Real Accounts and Profiles - Code Complete, Awaiting Supabase Setup
 
 - Add database-backed account creation.
 - Store username, display name, and hashed 4-digit PIN.
 - Login/logout.
 - Username uniqueness and non-changeable usernames.
 - Basic profile/stats page.
+
+Implementation note:
+- Account API routes, server-side PIN hashing, HTTP-only session cookies, login lockout tracking, and the profile/stats UI have been added.
+- Real account persistence requires the Supabase SQL schema and environment variables listed in `05 Deployment and Handover.md`.
 
 ### Milestone 3 - Private Rooms and Lobby Readiness
 

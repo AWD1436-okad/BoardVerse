@@ -56,3 +56,42 @@ Production verification:
 - Production browser check found Final Answer content, main buttons, Fastest Finger preview, and prize ladder.
 - Production Join Room placeholder interaction works.
 - Production browser console errors: none found.
+
+## 2026-06-14 - Milestone 2 Account Code
+
+Checks run:
+- `npm.cmd run typecheck` - passed after tightening validation helper return types.
+- `npm.cmd run lint` - passed after removing unnecessary manual memoization.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - first attempt hit a Windows/OneDrive generated-file lock on `.next/server/app/api`.
+- Removed the generated `.next` folder and reran `npx.cmd next build` - passed.
+
+Build result:
+- Production build includes dynamic account routes:
+  - `/api/account/signup`
+  - `/api/account/login`
+  - `/api/account/logout`
+  - `/api/account/session`
+  - `/api/account/profile`
+
+Local browser tests at `http://127.0.0.1:3000`:
+- Final Answer account UI renders.
+- Create Account form is visible.
+- Invalid PIN is blocked with `PIN must be exactly 4 digits.`
+- Valid signup attempt shows Supabase setup-required message because env vars are not configured yet.
+- Login panel opens.
+- Setup-required message lists missing Supabase environment variables.
+- Mobile viewport check at 390 x 844 has no horizontal overflow.
+- Browser console errors: none found.
+
+Not fully testable yet:
+- Real create account.
+- Duplicate username blocking.
+- Login with correct PIN.
+- Wrong PIN against a real account.
+- Failed-attempt lockout.
+- Logout after real session creation.
+- Profile persistence.
+
+Reason:
+- Supabase database tables and Vercel environment variables are not configured yet.

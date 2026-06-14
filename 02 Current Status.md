@@ -59,3 +59,31 @@ Still not real yet:
 
 Next best milestone:
 - Milestone 2: real accounts and profiles.
+
+## 2026-06-14 - Milestone 2 Account Code Added
+
+Milestone 2 account implementation has been added to the codebase, but production account storage is not active until Supabase is configured.
+
+What works in code now:
+- Create Account opens a real account form.
+- Log In opens a real login form.
+- Account API routes exist for signup, login, logout, session check, and display-name update.
+- 4-digit PINs are validated.
+- PINs are hashed server-side with Node crypto `scrypt` before storage.
+- Sessions use an HTTP-only cookie and a hashed session token stored in the database.
+- Failed login attempts are tracked by username in the database design.
+- After 5 failed attempts, that username is locked for 10 minutes.
+- Profile/stats panel exists and shows default stats.
+- Display name can be edited after login.
+- Create Room and Join Room remain clear Milestone 3 placeholders.
+
+Current blocker:
+- Vercel has no Supabase environment variables yet.
+- The Supabase tables have not been created yet.
+- Until those setup steps are complete, the UI shows a Supabase setup-required message instead of saving accounts.
+
+Next required owner setup:
+- Create or open a Supabase project.
+- Run `supabase/final-answer-account-schema.sql` in Supabase SQL Editor.
+- Add the required environment variables in Vercel.
+- Redeploy production.
