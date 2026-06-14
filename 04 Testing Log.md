@@ -47,3 +47,12 @@ Local browser tests at `http://127.0.0.1:3000`:
 Known limits:
 - Buttons are intentional placeholders until accounts and rooms are implemented.
 - No Supabase setup was added in this milestone.
+
+Production verification:
+- Vercel production deployment completed successfully.
+- `https://playsgrid.org` returns HTTP 200.
+- `https://www.playsgrid.org` redirects to `https://playsgrid.org/`.
+- Production browser title is `Final Answer | Private Quiz Game`.
+- Production browser check found Final Answer content, main buttons, Fastest Finger preview, and prize ladder.
+- Production Join Room placeholder interaction works.
+- Production browser console errors: none found.

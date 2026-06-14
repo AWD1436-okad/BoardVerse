@@ -13,6 +13,7 @@ The previous PlayGrid board-game product is retired and can be replaced.
 - Hosting: Vercel.
 - Vercel project currently linked as `boardverse`.
 - GitHub remote: `https://github.com/AWD1436-okad/BoardVerse.git`.
+- Current public app: Final Answer Milestone 1 foundation.
 
 ## How To Run Locally
 
