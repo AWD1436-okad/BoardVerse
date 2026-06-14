@@ -34,8 +34,9 @@ Current setup status:
 - Supabase project `chhdhlmnlocxwgqdqfip` has been restored.
 - Account tables have been created from `supabase/final-answer-account-schema.sql`.
 - `NEXT_PUBLIC_SUPABASE_URL` has been added to Vercel production.
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` still needs to be added in Vercel.
-- `SUPABASE_SECRET_KEY` still needs to be added in Vercel.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` has been added in Vercel production.
+- `SUPABASE_SECRET_KEY` has been added in Vercel production.
+- Production account signup/login/logout/profile behavior has been verified.
 
 Legacy fallback:
 - `SUPABASE_SERVICE_ROLE_KEY` can be used instead of `SUPABASE_SECRET_KEY` if the Supabase project only shows legacy API keys.
@@ -86,6 +87,6 @@ Standard production flow:
 
 - The live app should now show the Final Answer foundation after the latest production deployment.
 - Final Answer Milestone 1 is implemented.
-- Milestone 2 account code is implemented and deployed, but real account storage requires Supabase setup and Vercel env vars.
+- Milestone 2 account code is implemented, deployed, connected to Supabase, and production-verified.
 - No real rooms, realtime state, questions, reports, or gameplay stats updates exist yet.
 - Full 1,200-question generation/import process still needs implementation and review.

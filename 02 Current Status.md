@@ -77,13 +77,14 @@ What works in code now:
 - Display name can be edited after login.
 - Create Room and Join Room remain clear Milestone 3 placeholders.
 
-Current blocker:
-- Supabase account tables have been created in the restored Supabase project `chhdhlmnlocxwgqdqfip`.
-- `NEXT_PUBLIC_SUPABASE_URL` has been added to Vercel production.
-- Vercel still needs the Supabase publishable key and server-only secret key.
-- Until those key variables are complete, the UI shows a Supabase setup-required message instead of saving accounts.
+Current status:
+- Supabase account tables are created in project `chhdhlmnlocxwgqdqfip`.
+- Required production Vercel variables are configured:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+  - `SUPABASE_SECRET_KEY`
+- Real production account signup, duplicate username blocking, login, logout, session persistence, display-name update, profile/stats loading, wrong-PIN rejection, and lockout behavior have been verified.
+- No sensitive server-only account data was found in public browser assets during verification.
 
-Next required owner setup:
-- In Vercel, add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-- In Vercel, add `SUPABASE_SECRET_KEY`.
-- Redeploy production.
+Next milestone:
+- Milestone 3: private rooms and lobby readiness is approved to begin.

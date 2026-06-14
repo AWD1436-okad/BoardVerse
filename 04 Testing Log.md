@@ -120,11 +120,47 @@ Actions completed:
 - Added `NEXT_PUBLIC_SUPABASE_URL` to Vercel production.
 
 Still required:
-- Add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to Vercel.
-- Add `SUPABASE_SECRET_KEY` to Vercel.
-- Redeploy production.
-- Test real signup, duplicate username, wrong PIN, lockout, login, logout, and profile/stats.
+- Real account production verification after keys are added.
 
 Reason not fully complete:
 - The Supabase connector does not expose publishable or secret key values.
 - Secret values should not be pasted into chat.
+
+## 2026-06-15 - Production Account Verification
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Production environment:
+- Vercel deployment `dpl_D9ok1oCaXqh7fWWZzAwrLYEAaSzu` was Ready before account verification.
+- Vercel production env vars were present:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+  - `SUPABASE_SECRET_KEY`
+
+Bug found and fixed:
+- Initial production signup/login returned 500.
+- Cause: after the Supabase project restore completed, the account tables were not present/exposed to the Supabase REST API.
+- Fix: reapplied `supabase/final-answer-account-schema.sql`, added `service_role` grants, and requested a PostgREST schema reload.
+- The schema file now includes the required grants and schema reload statement.
+
+Production account tests:
+- Signup works with a new test account.
+- Duplicate username returns `409` with `username_taken`.
+- Session check after signup returns the logged-in account.
+- Display-name update works.
+- Profile/stats load with default zero values.
+- Logout works.
+- Session check after logout returns no account.
+- Login works after logout.
+- Wrong PIN returns `401` with `invalid_login`.
+- 5 failed PIN attempts lock the username; the next correct-PIN login returns `429` with `too_many_attempts`.
+- Public page and Next.js browser assets were scanned for `SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `sb_secret_`, `pin_hash`, `account_sessions`, and `scrypt:`; no leaks were found.
+- Direct database check confirmed the test account PIN is stored as a `scrypt` hash, not plaintext.
+
+Result:
+- Account system passes production verification.
+- Milestone 3 is approved to begin.

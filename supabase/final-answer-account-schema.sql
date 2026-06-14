@@ -61,5 +61,13 @@ alter table public.account_stats enable row level security;
 alter table public.account_login_attempts enable row level security;
 alter table public.account_sessions enable row level security;
 
+grant usage on schema public to service_role;
+grant select, insert, update, delete on public.accounts to service_role;
+grant select, insert, update, delete on public.account_stats to service_role;
+grant select, insert, update, delete on public.account_login_attempts to service_role;
+grant select, insert, update, delete on public.account_sessions to service_role;
+
+notify pgrst, 'reload schema';
+
 -- The app uses a server-only Supabase secret key for Milestone 2 account routes.
 -- Browser users should not directly read or write these tables.
