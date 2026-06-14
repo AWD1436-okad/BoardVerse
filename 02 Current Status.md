@@ -78,12 +78,12 @@ What works in code now:
 - Create Room and Join Room remain clear Milestone 3 placeholders.
 
 Current blocker:
-- Vercel has no Supabase environment variables yet.
-- The Supabase tables have not been created yet.
-- Until those setup steps are complete, the UI shows a Supabase setup-required message instead of saving accounts.
+- Supabase account tables have been created in the restored Supabase project `chhdhlmnlocxwgqdqfip`.
+- `NEXT_PUBLIC_SUPABASE_URL` has been added to Vercel production.
+- Vercel still needs the Supabase publishable key and server-only secret key.
+- Until those key variables are complete, the UI shows a Supabase setup-required message instead of saving accounts.
 
 Next required owner setup:
-- Create or open a Supabase project.
-- Run `supabase/final-answer-account-schema.sql` in Supabase SQL Editor.
-- Add the required environment variables in Vercel.
+- In Vercel, add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- In Vercel, add `SUPABASE_SECRET_KEY`.
 - Redeploy production.

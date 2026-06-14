@@ -104,3 +104,27 @@ Production verification:
 - Production browser shows Create Account, Log In, Username, Display name, and 4-digit PIN UI.
 - Production signup attempt shows Supabase setup-required message.
 - Production browser console errors: none found.
+
+## 2026-06-14 - Supabase Setup Progress
+
+Actions completed:
+- Restored existing Supabase project `chhdhlmnlocxwgqdqfip`.
+- Verified the database responds to SQL.
+- Applied `supabase/final-answer-account-schema.sql`.
+- Verified these tables exist:
+  - `accounts`
+  - `account_stats`
+  - `account_login_attempts`
+  - `account_sessions`
+- Verified RLS is enabled on all four tables.
+- Added `NEXT_PUBLIC_SUPABASE_URL` to Vercel production.
+
+Still required:
+- Add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to Vercel.
+- Add `SUPABASE_SECRET_KEY` to Vercel.
+- Redeploy production.
+- Test real signup, duplicate username, wrong PIN, lockout, login, logout, and profile/stats.
+
+Reason not fully complete:
+- The Supabase connector does not expose publishable or secret key values.
+- Secret values should not be pasted into chat.

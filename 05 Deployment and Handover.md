@@ -30,6 +30,13 @@ Required for Milestone 2 accounts:
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: browser-safe Supabase publishable key. This is expected for later client-side Supabase features.
 - `SUPABASE_SECRET_KEY`: server-only Supabase secret key used by Next.js API routes to create accounts, verify PINs, create sessions, and update profiles.
 
+Current setup status:
+- Supabase project `chhdhlmnlocxwgqdqfip` has been restored.
+- Account tables have been created from `supabase/final-answer-account-schema.sql`.
+- `NEXT_PUBLIC_SUPABASE_URL` has been added to Vercel production.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` still needs to be added in Vercel.
+- `SUPABASE_SECRET_KEY` still needs to be added in Vercel.
+
 Legacy fallback:
 - `SUPABASE_SERVICE_ROLE_KEY` can be used instead of `SUPABASE_SECRET_KEY` if the Supabase project only shows legacy API keys.
 
