@@ -1,0 +1,441 @@
+import { randomBytes } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PublicAccount } from "./auth";
+
+export type RoomStatus = "waiting" | "in_game" | "completed";
+
+export type RoomPlayer = {
+  accountId: string;
+  displayName: string;
+  isHost: boolean;
+  isReady: boolean;
+  joinedAt: string;
+  leftAt: string | null;
+  leftDuringGame: boolean;
+  username: string;
+};
+
+export type PublicRoom = {
+  activePlayerCount: number;
+  code: string;
+  createdAt: string;
+  hostAccountId: string;
+  id: string;
+  players: RoomPlayer[];
+  selectedPlayerCount: number;
+  canStart: boolean;
+  status: RoomStatus;
+};
+
+type RoomRow = {
+  code: string;
+  created_at: string;
+  host_account_id: string;
+  id: string;
+  selected_player_count: number;
+  status: RoomStatus;
+};
+
+type RoomPlayerRow = {
+  account_id: string;
+  accounts:
+    | {
+        display_name: string;
+        username: string;
+      }
+    | Array<{
+        display_name: string;
+        username: string;
+      }>
+    | null;
+  is_ready: boolean;
+  joined_at: string;
+  left_at: string | null;
+  left_during_game: boolean;
+};
+
+function generateRoomCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = randomBytes(6);
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+}
+
+function normalizeRoomCode(code: string) {
+  return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+export function validateRoomCode(code: string) {
+  const normalized = normalizeRoomCode(code);
+
+  if (!/^[A-Z0-9]{6}$/.test(normalized)) {
+    return {
+      ok: false,
+      message: "Room code must be 6 letters or numbers.",
+    } as const;
+  }
+
+  return { ok: true, normalized } as const;
+}
+
+export function validatePlayerCount(value: unknown) {
+  const count = Number(value);
+
+  if (!Number.isInteger(count) || count < 2 || count > 10) {
+    return {
+      ok: false,
+      message: "Choose a player count from 2 to 10.",
+    } as const;
+  }
+
+  return { count, ok: true } as const;
+}
+
+function activePlayers(players: RoomPlayer[]) {
+  return players.filter((player) => !player.leftAt);
+}
+
+function accountForPlayer(player: RoomPlayerRow) {
+  return Array.isArray(player.accounts) ? player.accounts[0] : player.accounts;
+}
+
+function toPublicRoom(room: RoomRow, players: RoomPlayerRow[]): PublicRoom {
+  const publicPlayers = players
+    .map((player) => {
+      const account = accountForPlayer(player);
+
+      return {
+        accountId: player.account_id,
+        displayName: account?.display_name ?? "Player",
+        isHost: player.account_id === room.host_account_id,
+        isReady: player.is_ready,
+        joinedAt: player.joined_at,
+        leftAt: player.left_at,
+        leftDuringGame: player.left_during_game,
+        username: account?.username ?? "",
+      };
+    })
+    .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt));
+  const active = activePlayers(publicPlayers);
+
+  return {
+    activePlayerCount: active.length,
+    canStart:
+      room.status === "waiting" &&
+      active.length === room.selected_player_count &&
+      active.every((player) => player.isReady),
+    code: room.code,
+    createdAt: room.created_at,
+    hostAccountId: room.host_account_id,
+    id: room.id,
+    players: publicPlayers,
+    selectedPlayerCount: room.selected_player_count,
+    status: room.status,
+  };
+}
+
+async function fetchRoomById(supabase: SupabaseClient, roomId: string) {
+  const { data: room, error: roomError } = await supabase
+    .from("rooms")
+    .select("id, code, host_account_id, selected_player_count, status, created_at")
+    .eq("id", roomId)
+    .maybeSingle();
+
+  if (roomError) {
+    throw roomError;
+  }
+
+  if (!room) {
+    return null;
+  }
+
+  const { data: players, error: playersError } = await supabase
+    .from("room_players")
+    .select(
+      "account_id, is_ready, joined_at, left_at, left_during_game, accounts(username, display_name)",
+    )
+    .eq("room_id", room.id)
+    .order("joined_at", { ascending: true });
+
+  if (playersError) {
+    throw playersError;
+  }
+
+  return toPublicRoom(room, (players ?? []) as unknown as RoomPlayerRow[]);
+}
+
+async function createUniqueRoomCode(supabase: SupabaseClient) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const code = generateRoomCode();
+    const { data, error } = await supabase
+      .from("rooms")
+      .select("id")
+      .eq("code", code)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      return code;
+    }
+  }
+
+  throw new Error("Could not generate a unique room code.");
+}
+
+export async function createRoom(
+  supabase: SupabaseClient,
+  input: { account: PublicAccount; selectedPlayerCount: number },
+) {
+  const code = await createUniqueRoomCode(supabase);
+  const { data: room, error: roomError } = await supabase
+    .from("rooms")
+    .insert({
+      code,
+      host_account_id: input.account.id,
+      selected_player_count: input.selectedPlayerCount,
+      status: "waiting",
+    })
+    .select("id, code, host_account_id, selected_player_count, status, created_at")
+    .single();
+
+  if (roomError) {
+    throw roomError;
+  }
+
+  const { error: playerError } = await supabase.from("room_players").insert({
+    account_id: input.account.id,
+    is_ready: false,
+    room_id: room.id,
+  });
+
+  if (playerError) {
+    throw playerError;
+  }
+
+  return fetchRoomById(supabase, room.id);
+}
+
+export async function getRoom(supabase: SupabaseClient, roomId: string) {
+  return fetchRoomById(supabase, roomId);
+}
+
+export async function joinRoom(
+  supabase: SupabaseClient,
+  input: { account: PublicAccount; code: string },
+) {
+  const { data: room, error: roomError } = await supabase
+    .from("rooms")
+    .select("id, code, host_account_id, selected_player_count, status, created_at")
+    .eq("code", input.code)
+    .maybeSingle();
+
+  if (roomError) {
+    throw roomError;
+  }
+
+  if (!room) {
+    return { error: "room_not_found" as const, room: null };
+  }
+
+  const current = await fetchRoomById(supabase, room.id);
+
+  if (!current) {
+    return { error: "room_not_found" as const, room: null };
+  }
+
+  const existing = current.players.find(
+    (player) => player.accountId === input.account.id,
+  );
+
+  if (existing?.leftDuringGame) {
+    return { error: "game_already_started" as const, room: null };
+  }
+
+  if (current.status !== "waiting") {
+    return { error: "game_already_started" as const, room: null };
+  }
+
+  if (
+    !existing?.leftAt &&
+    current.activePlayerCount >= current.selectedPlayerCount
+  ) {
+    return { error: "room_full" as const, room: null };
+  }
+
+  if (existing) {
+    const { error } = await supabase
+      .from("room_players")
+      .update({
+        is_ready: false,
+        left_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("room_id", room.id)
+      .eq("account_id", input.account.id);
+
+    if (error) {
+      throw error;
+    }
+  } else {
+    const { error } = await supabase.from("room_players").insert({
+      account_id: input.account.id,
+      is_ready: false,
+      room_id: room.id,
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  return { error: null, room: await fetchRoomById(supabase, room.id) };
+}
+
+export async function setReady(
+  supabase: SupabaseClient,
+  input: { accountId: string; isReady: boolean; roomId: string },
+) {
+  const room = await fetchRoomById(supabase, input.roomId);
+
+  if (!room) {
+    return { error: "room_not_found" as const, room: null };
+  }
+
+  if (room.status !== "waiting") {
+    return { error: "game_already_started" as const, room: null };
+  }
+
+  const player = room.players.find(
+    (item) => item.accountId === input.accountId && !item.leftAt,
+  );
+
+  if (!player) {
+    return { error: "not_in_room" as const, room: null };
+  }
+
+  const { error } = await supabase
+    .from("room_players")
+    .update({
+      is_ready: input.isReady,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("room_id", input.roomId)
+    .eq("account_id", input.accountId);
+
+  if (error) {
+    throw error;
+  }
+
+  return { error: null, room: await fetchRoomById(supabase, input.roomId) };
+}
+
+async function transferHostIfNeeded(
+  supabase: SupabaseClient,
+  room: PublicRoom,
+  leavingAccountId: string,
+) {
+  if (room.hostAccountId !== leavingAccountId) {
+    return;
+  }
+
+  const nextHost = activePlayers(room.players)
+    .filter((player) => player.accountId !== leavingAccountId)
+    .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt))[0];
+
+  if (!nextHost) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("rooms")
+    .update({
+      host_account_id: nextHost.accountId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", room.id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function leaveRoom(
+  supabase: SupabaseClient,
+  input: { accountId: string; roomId: string },
+) {
+  const room = await fetchRoomById(supabase, input.roomId);
+
+  if (!room) {
+    return { error: "room_not_found" as const, room: null };
+  }
+
+  const player = room.players.find(
+    (item) => item.accountId === input.accountId && !item.leftAt,
+  );
+
+  if (!player) {
+    return { error: "not_in_room" as const, room: null };
+  }
+
+  const { error } = await supabase
+    .from("room_players")
+    .update({
+      is_ready: false,
+      left_at: new Date().toISOString(),
+      left_during_game: room.status === "in_game",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("room_id", input.roomId)
+    .eq("account_id", input.accountId);
+
+  if (error) {
+    throw error;
+  }
+
+  await transferHostIfNeeded(supabase, room, input.accountId);
+  return { error: null, room: await fetchRoomById(supabase, input.roomId) };
+}
+
+export async function startRoom(
+  supabase: SupabaseClient,
+  input: { accountId: string; roomId: string },
+) {
+  const room = await fetchRoomById(supabase, input.roomId);
+
+  if (!room) {
+    return { error: "room_not_found" as const, room: null };
+  }
+
+  if (room.hostAccountId !== input.accountId) {
+    return { error: "host_only" as const, room };
+  }
+
+  if (room.status !== "waiting") {
+    return { error: "game_already_started" as const, room };
+  }
+
+  if (room.activePlayerCount !== room.selectedPlayerCount) {
+    return { error: "room_not_full" as const, room };
+  }
+
+  if (!activePlayers(room.players).every((player) => player.isReady)) {
+    return { error: "not_all_ready" as const, room };
+  }
+
+  const { error } = await supabase
+    .from("rooms")
+    .update({
+      started_at: new Date().toISOString(),
+      status: "in_game",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.roomId);
+
+  if (error) {
+    throw error;
+  }
+
+  return { error: null, room: await fetchRoomById(supabase, input.roomId) };
+}

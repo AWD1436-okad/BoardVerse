@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 
 type Panel = "signup" | "login" | "create-room" | "join-room";
+type RoomStatus = "waiting" | "in_game" | "completed";
 
 type AccountStats = {
   fastestFingerWins: number;
@@ -22,6 +23,29 @@ type Account = {
   username: string;
 };
 
+type RoomPlayer = {
+  accountId: string;
+  displayName: string;
+  isHost: boolean;
+  isReady: boolean;
+  joinedAt: string;
+  leftAt: string | null;
+  leftDuringGame: boolean;
+  username: string;
+};
+
+type Room = {
+  activePlayerCount: number;
+  canStart: boolean;
+  code: string;
+  createdAt: string;
+  hostAccountId: string;
+  id: string;
+  players: RoomPlayer[];
+  selectedPlayerCount: number;
+  status: RoomStatus;
+};
+
 type ApiResponse = {
   account?: Account | null;
   code?: string;
@@ -29,6 +53,7 @@ type ApiResponse = {
   message?: string;
   missing?: string[];
   ok: boolean;
+  room?: Room | null;
 };
 
 const ladder = [
@@ -93,6 +118,10 @@ function validPin(pin: string) {
   return /^\d{4}$/.test(pin);
 }
 
+function isValidRoomCode(code: string) {
+  return /^[A-Z0-9]{6}$/.test(code.trim().toUpperCase());
+}
+
 export function FinalAnswerApp() {
   const [activePanel, setActivePanel] = useState<Panel>("signup");
   const [account, setAccount] = useState<Account | null>(null);
@@ -100,6 +129,7 @@ export function FinalAnswerApp() {
   const [missingSetup, setMissingSetup] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [room, setRoom] = useState<Room | null>(null);
 
   const [signupUsername, setSignupUsername] = useState("");
   const [signupDisplayName, setSignupDisplayName] = useState("");
@@ -107,6 +137,8 @@ export function FinalAnswerApp() {
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPin, setLoginPin] = useState("");
   const [displayNameDraft, setDisplayNameDraft] = useState("");
+  const [roomPlayerCount, setRoomPlayerCount] = useState(2);
+  const [joinCode, setJoinCode] = useState("");
 
   const stats = account?.stats ?? emptyStats;
   const joinedDate = account?.createdAt
@@ -116,6 +148,10 @@ export function FinalAnswerApp() {
         year: "numeric",
       }).format(new Date(account.createdAt))
     : "";
+  const currentPlayer = room?.players.find(
+    (player) => player.accountId === account?.id && !player.leftAt,
+  );
+  const isHost = Boolean(room && account?.id === room.hostAccountId);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +184,19 @@ export function FinalAnswerApp() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!room?.id || !account) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      refreshRoom(false);
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.id, account?.id]);
 
   function showApiError(data: ApiResponse, fallback: string) {
     if (data.code === "setup_required") {
@@ -272,12 +321,205 @@ export function FinalAnswerApp() {
     try {
       await fetch("/api/account/logout", { method: "POST" });
       setAccount(null);
+      setRoom(null);
       setDisplayNameDraft("");
       setLoginPin("");
       setSignupPin("");
       setMessage("Logged out.");
     } catch {
       setMessage("Could not log out. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createRoom(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!account) {
+      setMessage("You must be logged in to create a room.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/rooms/create", {
+        body: JSON.stringify({ playerCount: roomPlayerCount }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !data.room) {
+        showApiError(data, "Could not create room.");
+        return;
+      }
+
+      setRoom(data.room);
+      setMessage(`Room created. Share code ${data.room.code}.`);
+    } catch {
+      setMessage("Could not create room. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function joinRoom(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!account) {
+      setMessage("You must be logged in to join a room.");
+      return;
+    }
+
+    if (!isValidRoomCode(joinCode)) {
+      setMessage("Room code must be 6 letters or numbers.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/rooms/join", {
+        body: JSON.stringify({ code: joinCode }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !data.room) {
+        showApiError(data, "Could not join room.");
+        return;
+      }
+
+      setRoom(data.room);
+      setJoinCode(data.room.code);
+      setMessage(`Joined room ${data.room.code}.`);
+    } catch {
+      setMessage("Could not join room. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshRoom(showMessage = true) {
+    if (!room?.id) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}`);
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !data.room) {
+        if (showMessage) {
+          showApiError(data, "Could not refresh room.");
+        }
+        return;
+      }
+
+      setRoom(data.room);
+      if (showMessage) {
+        setMessage("Room refreshed.");
+      }
+    } catch {
+      if (showMessage) {
+        setMessage("Could not refresh room. Try again.");
+      }
+    }
+  }
+
+  async function updateReady(isReady: boolean) {
+    if (!room?.id) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/ready`, {
+        body: JSON.stringify({ isReady }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !data.room) {
+        showApiError(data, "Could not update ready status.");
+        return;
+      }
+
+      setRoom(data.room);
+      setMessage(isReady ? "You are ready." : "You are not ready.");
+    } catch {
+      setMessage("Could not update ready status. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function leaveRoom() {
+    if (!room?.id) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/leave`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok) {
+        showApiError(data, "Could not leave room.");
+        return;
+      }
+
+      setRoom(null);
+      setMessage(
+        room.status === "in_game"
+          ? "You left after the game started, so you cannot rejoin that game."
+          : "You left the room. You can rejoin by code before it starts.",
+      );
+    } catch {
+      setMessage("Could not leave room. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function startRoom() {
+    if (!room?.id) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/start`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !data.room) {
+        showApiError(data, "Could not start room.");
+        if (data.room) {
+          setRoom(data.room);
+        }
+        return;
+      }
+
+      setRoom(data.room);
+      setMessage("Room moved to in-game. Fastest Finger comes in a later milestone.");
+    } catch {
+      setMessage("Could not start room. Try again.");
     } finally {
       setBusy(false);
     }
@@ -356,8 +598,8 @@ export function FinalAnswerApp() {
               {[
                 ["signup", "Create Account", "Real account"],
                 ["login", "Log In", "PIN login"],
-                ["create-room", "Create Room", "Milestone 3"],
-                ["join-room", "Join Room", "Milestone 3"],
+                ["create-room", "Create Room", "Private room"],
+                ["join-room", "Join Room", "Room code"],
               ].map(([panel, label, eyebrow]) => (
                 <button
                   className={`group border px-5 py-4 text-left transition ${
@@ -402,20 +644,44 @@ export function FinalAnswerApp() {
           </section>
 
           <section
-            aria-label="Account and game preview"
+            aria-label="Account and room panel"
             className="relative border border-[#244b91] bg-[#040b19]/90 p-4 shadow-[14px_14px_0_rgba(214,161,50,0.18),0_0_60px_rgba(21,58,122,0.3)] sm:p-5"
             id="account-panel"
           >
             <div className="absolute -inset-px -z-10 bg-gradient-to-br from-[#f6d37a]/40 via-transparent to-[#2457b7]/50 blur-xl" />
-            {account ? (
+            {room ? (
+              <RoomLobby
+                account={account}
+                busy={busy}
+                currentPlayer={currentPlayer}
+                isHost={isHost}
+                onLeaveRoom={leaveRoom}
+                onRefreshRoom={() => refreshRoom(true)}
+                onStartRoom={startRoom}
+                onUpdateReady={updateReady}
+                room={room}
+              />
+            ) : activePanel === "create-room" || activePanel === "join-room" ? (
+              <RoomActionPanel
+                account={account}
+                activePanel={activePanel}
+                busy={busy}
+                joinCode={joinCode}
+                onCreateRoom={createRoom}
+                onJoinCodeChange={setJoinCode}
+                onJoinRoom={joinRoom}
+                onPlayerCountChange={setRoomPlayerCount}
+                playerCount={roomPlayerCount}
+              />
+            ) : account ? (
               <ProfilePanel
                 account={account}
                 busy={busy}
                 displayNameDraft={displayNameDraft}
+                joinedDate={joinedDate}
                 onDisplayNameChange={setDisplayNameDraft}
                 onSubmitDisplayName={submitDisplayName}
                 stats={stats}
-                joinedDate={joinedDate}
               />
             ) : (
               <div className="grid gap-4 lg:grid-cols-[1fr_154px]">
@@ -469,6 +735,250 @@ export function FinalAnswerApp() {
   );
 }
 
+function RoomActionPanel(props: {
+  account: Account | null;
+  activePanel: Panel;
+  busy: boolean;
+  joinCode: string;
+  onCreateRoom: (event: FormEvent<HTMLFormElement>) => void;
+  onJoinCodeChange: (value: string) => void;
+  onJoinRoom: (event: FormEvent<HTMLFormElement>) => void;
+  onPlayerCountChange: (value: number) => void;
+  playerCount: number;
+}) {
+  if (!props.account) {
+    return (
+      <div className="border border-[#ff5e5e]/45 bg-[#320f18]/85 p-4">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+          Login required
+        </p>
+        <h2 className="mt-3 text-2xl font-black">Rooms need an account</h2>
+        <p className="mt-3 text-sm leading-6 text-red-50">
+          You must be logged in to create or join a private room.
+        </p>
+      </div>
+    );
+  }
+
+  if (props.activePanel === "join-room") {
+    return (
+      <form
+        className="border border-[#244b91] bg-[#061a3e] p-4"
+        onSubmit={props.onJoinRoom}
+      >
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+          Private room
+        </p>
+        <h2 className="mt-3 text-2xl font-black">Join Room</h2>
+        <label className="mt-4 block text-sm font-bold text-blue-50">
+          Room code
+          <input
+            className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 font-mono text-lg uppercase tracking-[0.18em] text-white outline-none transition placeholder:text-blue-100/32 focus:border-[#f6d37a]"
+            maxLength={6}
+            onChange={(event) =>
+              props.onJoinCodeChange(event.target.value.toUpperCase())
+            }
+            placeholder="ABC123"
+            value={props.joinCode}
+          />
+        </label>
+        <button
+          className="mt-4 w-full border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225] disabled:cursor-not-allowed disabled:opacity-55"
+          disabled={props.busy}
+          type="submit"
+        >
+          Join Room
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <form
+      className="border border-[#244b91] bg-[#061a3e] p-4"
+      onSubmit={props.onCreateRoom}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+        Host controls
+      </p>
+      <h2 className="mt-3 text-2xl font-black">Create Room</h2>
+      <label className="mt-4 block text-sm font-bold text-blue-50">
+        Player count
+        <select
+          className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none transition focus:border-[#f6d37a]"
+          onChange={(event) =>
+            props.onPlayerCountChange(Number(event.target.value))
+          }
+          value={props.playerCount}
+        >
+          {Array.from({ length: 9 }, (_, index) => index + 2).map((count) => (
+            <option key={count} value={count}>
+              {count} players
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        className="mt-4 w-full border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225] disabled:cursor-not-allowed disabled:opacity-55"
+        disabled={props.busy}
+        type="submit"
+      >
+        Create Room
+      </button>
+    </form>
+  );
+}
+
+function RoomLobby(props: {
+  account: Account | null;
+  busy: boolean;
+  currentPlayer: RoomPlayer | undefined;
+  isHost: boolean;
+  onLeaveRoom: () => void;
+  onRefreshRoom: () => void;
+  onStartRoom: () => void;
+  onUpdateReady: (isReady: boolean) => void;
+  room: Room;
+}) {
+  const activePlayers = props.room.players.filter((player) => !player.leftAt);
+  const waiting = props.room.status === "waiting";
+
+  return (
+    <div className="grid gap-4">
+      <div className="border border-[#244b91] bg-[#061a3e] p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+              Room code
+            </p>
+            <h2 className="mt-2 font-mono text-4xl font-black tracking-[0.2em] text-white">
+              {props.room.code}
+            </h2>
+          </div>
+          <span className="border border-[#f6d37a]/55 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#f6d37a]">
+            {props.room.status.replace("_", " ")}
+          </span>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-blue-100/75">
+          {props.room.activePlayerCount} of {props.room.selectedPlayerCount}{" "}
+          players joined. Share this code with family or friends.
+        </p>
+      </div>
+
+      <div className="grid gap-2">
+        {props.room.players.map((player) => (
+          <div
+            className={`border p-3 ${
+              player.leftAt
+                ? "border-white/10 bg-white/5 text-blue-100/45"
+                : "border-[#244b91] bg-[#071a3d]"
+            }`}
+            key={player.accountId}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="font-black">{player.displayName}</p>
+                <p className="font-mono text-xs text-blue-100/58">
+                  @{player.username}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {player.isHost && (
+                  <span className="border border-[#f6d37a]/60 px-2 py-1 text-xs font-black uppercase text-[#f6d37a]">
+                    Host
+                  </span>
+                )}
+                <span
+                  className={`border px-2 py-1 text-xs font-black uppercase ${
+                    player.leftAt
+                      ? "border-white/15 text-blue-100/45"
+                      : player.isReady
+                        ? "border-emerald-300 text-emerald-200"
+                        : "border-[#ff9f2f] text-[#ffcb8c]"
+                  }`}
+                >
+                  {player.leftAt
+                    ? player.leftDuringGame
+                      ? "Left game"
+                      : "Left room"
+                    : player.isReady
+                      ? "Ready"
+                      : "Not ready"}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {props.room.status === "in_game" && (
+        <div className="border border-[#f6d37a]/35 bg-[#061733]/92 p-4 text-sm leading-6 text-blue-100">
+          Game status is in-game. Fastest Finger and hot seat gameplay are not
+          part of this milestone.
+        </div>
+      )}
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {waiting && props.currentPlayer && (
+          <button
+            className="border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225] disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={props.busy}
+            onClick={() => props.onUpdateReady(!props.currentPlayer?.isReady)}
+            type="button"
+          >
+            {props.currentPlayer.isReady ? "Not Ready" : "Ready"}
+          </button>
+        )}
+        {props.isHost && waiting && (
+          <button
+            className="border border-emerald-300 bg-emerald-300 px-4 py-3 font-black text-[#071225] disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={props.busy || !props.room.canStart}
+            onClick={props.onStartRoom}
+            title={
+              props.room.canStart
+                ? "Start room"
+                : "Room must be full and every player must be ready."
+            }
+            type="button"
+          >
+            Start Game
+          </button>
+        )}
+        <button
+          className="border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+          disabled={props.busy}
+          onClick={props.onRefreshRoom}
+          type="button"
+        >
+          Refresh Room
+        </button>
+        {props.currentPlayer && (
+          <button
+            className="border border-[#ff5e5e]/70 bg-[#320f18]/85 px-4 py-3 font-black text-red-50"
+            disabled={props.busy}
+            onClick={props.onLeaveRoom}
+            type="button"
+          >
+            Leave Room
+          </button>
+        )}
+      </div>
+
+      {!props.room.canStart && waiting && (
+        <p className="text-sm leading-6 text-blue-100/65">
+          Start unlocks only when exactly {props.room.selectedPlayerCount}{" "}
+          players are in the room and every player is ready.
+        </p>
+      )}
+
+      <p className="text-xs text-blue-100/45">
+        Active players: {activePlayers.length}. Host transfer happens
+        automatically if the host leaves.
+      </p>
+    </div>
+  );
+}
+
 function AccountPanel(props: {
   activePanel: Panel;
   busy: boolean;
@@ -485,23 +995,6 @@ function AccountPanel(props: {
   submitLogin: (event: FormEvent<HTMLFormElement>) => void;
   submitSignup: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  if (props.activePanel === "create-room" || props.activePanel === "join-room") {
-    return (
-      <div className="border border-[#244b91] bg-[#061a3e] p-4">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
-          Milestone 3
-        </p>
-        <h2 className="mt-3 text-2xl font-black">
-          {props.activePanel === "create-room" ? "Create Room" : "Join Room"}
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-blue-100/80">
-          Private room codes, player counts, and ready states come after real
-          accounts. This button is intentionally held until Milestone 3.
-        </p>
-      </div>
-    );
-  }
-
   if (props.activePanel === "login") {
     return (
       <form
@@ -630,7 +1123,10 @@ function ProfilePanel(props: {
           </span>
           {props.joinedDate ? ` | Joined ${props.joinedDate}` : ""}
         </p>
-        <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={props.onSubmitDisplayName}>
+        <form
+          className="mt-4 flex flex-col gap-3 sm:flex-row"
+          onSubmit={props.onSubmitDisplayName}
+        >
           <input
             className="min-w-0 flex-1 border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none focus:border-[#f6d37a]"
             maxLength={24}
