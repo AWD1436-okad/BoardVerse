@@ -95,3 +95,12 @@ Not fully testable yet:
 
 Reason:
 - Supabase database tables and Vercel environment variables are not configured yet.
+
+Production verification:
+- Vercel production deployment completed successfully.
+- `https://playsgrid.org` returns HTTP 200.
+- `https://www.playsgrid.org` redirects to `https://playsgrid.org/`.
+- Production browser title is `Final Answer | Private Quiz Game`.
+- Production browser shows Create Account, Log In, Username, Display name, and 4-digit PIN UI.
+- Production signup attempt shows Supabase setup-required message.
+- Production browser console errors: none found.

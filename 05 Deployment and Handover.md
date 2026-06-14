@@ -79,6 +79,6 @@ Standard production flow:
 
 - The live app should now show the Final Answer foundation after the latest production deployment.
 - Final Answer Milestone 1 is implemented.
-- Milestone 2 account code is implemented, but real account storage requires Supabase setup and Vercel env vars.
+- Milestone 2 account code is implemented and deployed, but real account storage requires Supabase setup and Vercel env vars.
 - No real rooms, realtime state, questions, reports, or gameplay stats updates exist yet.
 - Full 1,200-question generation/import process still needs implementation and review.
