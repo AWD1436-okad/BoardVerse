@@ -48,9 +48,8 @@ Standard production flow:
 
 ## Current Known Limitations
 
-- The live app still shows the old PlayGrid placeholder.
-- Final Answer has not been implemented yet.
+- The live app should now show the Final Answer foundation after the latest production deployment.
+- Final Answer Milestone 1 is implemented.
 - Supabase is not configured.
 - No real accounts, rooms, realtime state, questions, reports, or stats exist yet.
 - Full 1,200-question generation/import process still needs implementation and review.
-

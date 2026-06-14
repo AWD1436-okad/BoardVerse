@@ -32,3 +32,30 @@ Current recommendation:
 - Replace old PlayGrid code with Final Answer in milestones.
 - Start with Milestone 1: rebuild foundation, metadata, memory files, and public starter shell.
 
+## 2026-06-14 - Milestone 1 Completed
+
+Milestone 1 has replaced the public PlayGrid placeholder with the Final Answer foundation.
+
+What works now:
+- The public `/` route renders the Final Answer landing page.
+- Public metadata title and description use Final Answer.
+- Original Final Answer branding is in place with an `FA` mark.
+- The visual style uses dark navy/black backgrounds, deep blue panels, gold highlights, orange selected-answer styling, and a dramatic timer flare preview.
+- Main placeholder buttons are visible and clickable:
+  - Create Account.
+  - Log In.
+  - Create Room.
+  - Join Room.
+- Placeholder button clicks explain which future milestone will make each action real.
+- The old browser-local PlayGrid board-game UI is no longer used by the public route.
+
+Still not real yet:
+- Database-backed accounts.
+- Login with hashed 4-digit PIN.
+- Private rooms and room codes.
+- Realtime gameplay.
+- Question database and reporting.
+- Stats.
+
+Next best milestone:
+- Milestone 2: real accounts and profiles.

@@ -1,5 +1,5 @@
-import { PlayGridApp } from "./playgrid-app";
+import { FinalAnswerApp } from "./final-answer-app";
 
 export default function Home() {
-  return <PlayGridApp />;
+  return <FinalAnswerApp />;
 }

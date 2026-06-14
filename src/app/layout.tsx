@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PlayGrid — Online Board Games",
+  title: "Final Answer | Private Quiz Game",
   description:
-    "PlayGrid is a browser-based online board-game hub for casual play with friends.",
+    "Final Answer is a private browser quiz game for friends and family with room-code play, lifelines, and a dramatic prize ladder.",
 };
 
 export default function RootLayout({

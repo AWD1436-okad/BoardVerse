@@ -24,3 +24,26 @@ Follow-up checks after memory-file update:
 - `npm.cmd run lint` - passed.
 - `npm.cmd run money:audit` - passed.
 - `npx.cmd next build` - passed.
+
+## 2026-06-14 - Milestone 1 Final Answer Foundation
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Local browser tests at `http://127.0.0.1:3000`:
+- Page title is `Final Answer | Private Quiz Game`.
+- Final Answer landing page renders.
+- Create Account button is clickable and shows its Milestone 2 placeholder explanation.
+- Log In button is clickable and shows its Milestone 2 placeholder explanation.
+- Create Room button is clickable and shows its Milestone 3 placeholder explanation.
+- Join Room button is clickable and shows its Milestone 3 placeholder explanation.
+- Fastest Finger preview and prize ladder are visible.
+- Desktop browser console errors: none found.
+- Mobile viewport check at 390 x 844 has no horizontal overflow.
+
+Known limits:
+- Buttons are intentional placeholders until accounts and rooms are implemented.
+- No Supabase setup was added in this milestone.

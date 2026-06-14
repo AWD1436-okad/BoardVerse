@@ -22,3 +22,31 @@ button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
+
+.timer-flare {
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      #1a56b0 18%,
+      #f6d37a 44%,
+      #fff2b7 50%,
+      #f6d37a 56%,
+      #1a56b0 82%,
+      transparent 100%
+    ),
+    #071a3d;
+  box-shadow: 0 0 24px rgba(246, 211, 122, 0.85);
+  transform-origin: left center;
+  animation: timer-flare 30s linear infinite;
+}
+
+@keyframes timer-flare {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
