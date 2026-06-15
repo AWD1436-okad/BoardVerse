@@ -574,4 +574,15 @@ Implementation verification:
 - One build retry hit a Windows `.next` file-lock from leftover Playwright helper processes. The generated `.next` folder was path-verified, cleared, and `npx.cmd next build` passed afterward.
 
 Production verification:
-- To be completed after the deployment reaches Vercel Ready and the 1,200-question seed is applied through the protected admin seed route.
+- Commit `612efc6` deployed to Vercel as `dpl_6YrJrpvxyHKD6Rfox3nvJipdQxRu` and reached Ready.
+- `https://playsgrid.org` returned HTTP 200 and contained Final Answer branding.
+- The protected admin seed route returned 1,200 seeded questions, 100 at each level.
+- Production database verification showed 1,200 active questions, 100 per level, A: 300, B: 300, C: 300, D: 300, no missing answers, no invalid correct-answer keys, no prize mismatches, and no duplicate active question text.
+- Production random question API returned a question without `correctAnswer` or `correct_answer`.
+- Admin question summary returned 1,200 total, 1,200 active, 0 inactive, and exact A/B/C/D balance.
+- Admin deactivate/reactivate controls worked on a production question.
+- Question reporting saved a report, increased the report count, appeared in admin review, and duplicate reporting returned `409 already_reported`.
+- Existing completed-room results endpoint returned two result rows, confirming result reads still work after the question/admin changes.
+- Playwright desktop screenshot of `https://playsgrid.org` passed.
+- Playwright mobile screenshot at 390x844 passed with no obvious overlap.
+- Vercel runtime logs during verification showed successful 200 responses and the expected 409 duplicate-report response; no server error logs were returned.

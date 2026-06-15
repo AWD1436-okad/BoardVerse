@@ -287,6 +287,7 @@ Milestone 10 expands the Hot Seat question bank and adds owner/admin review tool
 What works now:
 - The Hot Seat seed bank contains 1,200 active questions: 100 questions for each of the 12 prize levels.
 - The local seed data has an exact correct-answer balance: A: 300, B: 300, C: 300, D: 300.
+- Production has been seeded and verified with 1,200 active Hot Seat questions and the same A/B/C/D balance.
 - A question audit script checks total count, per-level count, A/B/C/D balance, duplicate question text, answer completeness, correct-answer validity, prize-level mapping, and Fastest Finger starter quality.
 - The existing 100 Fastest Finger ordering questions are audited for duplicates, invalid order keys, and blocked topic terms.
 - Admin accounts can open a question review panel.

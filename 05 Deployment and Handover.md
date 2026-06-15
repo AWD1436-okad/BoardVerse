@@ -264,7 +264,7 @@ Standard production flow:
 - Milestone 7 Hot Seat Core Gameplay is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 8 Lifelines is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 9 Final Results, Stats, and In-Game Reporting is implemented, deployed, connected to Supabase, and production-verified through API/database checks.
-- Milestone 10 Full Question Bank and Admin Tools is implemented locally and should be production-verified after deployment and seeding.
+- Milestone 10 Full Question Bank and Admin Tools is implemented, deployed, seeded, and production-verified.
 - No chat, sound effects, or advanced admin question editing exists yet.
 - Starting a room now creates a `game_states` record, starts Fastest Finger, moves the winner to `hot_seat`, and plays through hot-seat turns until the room is `completed`.
 - Hot Seat players can now use 50:50, Ask The Audience, and Pass.
