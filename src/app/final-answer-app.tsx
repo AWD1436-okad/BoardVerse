@@ -58,7 +58,9 @@ type Room = {
 type GameState = {
   completedTurnAccountIds: string[];
   currentRoomStatus: Exclude<RoomStatus, "waiting">;
+  currentFastestFingerRoundId: string | null;
   eligibleAccountIds: string[];
+  fastestFingerWinnerAccountId: string | null;
   hostAccountId: string;
   hotSeatAccountId: string | null;
   id: string;
@@ -78,6 +80,32 @@ type Question = {
   questionText: string;
 };
 
+type FastestFingerItemKey = "item_1" | "item_2" | "item_3" | "item_4";
+
+type FastestFingerState = {
+  endsAt: string;
+  eligiblePlayerCount: number;
+  items: Array<{ key: FastestFingerItemKey; text: string }>;
+  loadedAt: number;
+  prompt: string;
+  roundId: string;
+  roundNumber: number;
+  serverNow: string;
+  startsAt: string;
+  status: "active" | "completed";
+  submission: {
+    isCorrect: boolean;
+    responseMs: number;
+    submittedAt: string;
+    submittedOrder: FastestFingerItemKey[];
+  } | null;
+  submissionCount: number;
+  winner: {
+    accountId: string;
+    displayName: string;
+  } | null;
+};
+
 type ReportedQuestion = Question & {
   active: boolean;
   correctAnswer: string;
@@ -92,6 +120,7 @@ type ApiResponse = {
   message?: string;
   missing?: string[];
   ok: boolean;
+  fastestFinger?: Omit<FastestFingerState, "loadedAt"> | null;
   prizeAmount?: number;
   question?: Question | null;
   questions?: ReportedQuestion[];
@@ -181,6 +210,13 @@ export function FinalAnswerApp() {
   const [realtimeStatus, setRealtimeStatus] = useState("Realtime idle");
   const [busy, setBusy] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
+  const [fastestFinger, setFastestFinger] = useState<FastestFingerState | null>(
+    null,
+  );
+  const [fastestFingerOrder, setFastestFingerOrder] = useState<
+    FastestFingerItemKey[]
+  >(["item_1", "item_2", "item_3", "item_4"]);
+  const [timerNow, setTimerTick] = useState(Date.now());
   const [question, setQuestion] = useState<Question | null>(null);
   const [reportedQuestions, setReportedQuestions] = useState<ReportedQuestion[]>(
     [],
@@ -261,6 +297,31 @@ export function FinalAnswerApp() {
       return;
     }
 
+    if (room.status !== "fastest_finger" && room.status !== "hot_seat") {
+      return;
+    }
+
+    loadFastestFingerState(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.id, room?.status, account?.id]);
+
+  useEffect(() => {
+    if (!fastestFinger || fastestFinger.status !== "active") {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setTimerTick(Date.now());
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, [fastestFinger]);
+
+  useEffect(() => {
+    if (!room?.id || !account) {
+      return;
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {
@@ -287,6 +348,9 @@ export function FinalAnswerApp() {
           window.setTimeout(() => {
             refreshQueued = false;
             refreshRoom(false);
+            if (room.status === "fastest_finger" || room.status === "hot_seat") {
+              loadFastestFingerState(false);
+            }
           }, 150);
         },
       )
@@ -619,11 +683,87 @@ export function FinalAnswerApp() {
       }
 
       setRoom(data.room);
-      setMessage(
-        "Game state created. Room is ready for Fastest Finger in the next milestone.",
-      );
+      setMessage("Fastest Finger started.");
     } catch {
       setMessage("Could not start room. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function setLoadedFastestFinger(
+    state: Omit<FastestFingerState, "loadedAt"> | null | undefined,
+  ) {
+    if (!state) {
+      setFastestFinger(null);
+      return;
+    }
+
+    setFastestFinger({ ...state, loadedAt: Date.now() });
+    setFastestFingerOrder(state.submission?.submittedOrder ?? state.items.map((item) => item.key));
+    setTimerTick(Date.now());
+  }
+
+  async function loadFastestFingerState(showMessage = false) {
+    if (!room?.id) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/fastest-finger`);
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !data.fastestFinger) {
+        if (showMessage) {
+          showApiError(data, "Could not load Fastest Finger.");
+        }
+        return;
+      }
+
+      setLoadedFastestFinger(data.fastestFinger);
+
+      if (showMessage) {
+        setMessage("Fastest Finger refreshed.");
+      }
+    } catch {
+      if (showMessage) {
+        setMessage("Could not load Fastest Finger. Try again.");
+      }
+    }
+  }
+
+  async function submitFastestFingerOrder(order: FastestFingerItemKey[]) {
+    if (!room?.id) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/fastest-finger`, {
+        body: JSON.stringify({ order }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (data.fastestFinger) {
+        setLoadedFastestFinger(data.fastestFinger);
+      }
+
+      if (!response.ok || !data.fastestFinger) {
+        showApiError(data, "Could not submit Fastest Finger.");
+        return;
+      }
+
+      setMessage(
+        data.fastestFinger.winner
+          ? `Winner: ${data.fastestFinger.winner.displayName}.`
+          : "Waiting for other players...",
+      );
+    } catch {
+      setMessage("Could not submit Fastest Finger. Try again.");
     } finally {
       setBusy(false);
     }
@@ -845,13 +985,19 @@ export function FinalAnswerApp() {
                 account={account}
                 busy={busy}
                 currentPlayer={currentPlayer}
+                fastestFinger={fastestFinger}
+                fastestFingerOrder={fastestFingerOrder}
                 isHost={isHost}
                 onLeaveRoom={leaveRoom}
+                onRefreshFastestFinger={() => loadFastestFingerState(true)}
                 onRefreshRoom={() => refreshRoom(true)}
                 onStartRoom={startRoom}
+                onSubmitFastestFinger={submitFastestFingerOrder}
+                onUpdateFastestFingerOrder={setFastestFingerOrder}
                 onUpdateReady={updateReady}
                 realtimeStatus={room ? realtimeStatus : "Realtime idle"}
                 room={room}
+                timerNow={timerNow}
               />
             ) : activePanel === "create-room" || activePanel === "join-room" ? (
               <RoomActionPanel
@@ -1040,13 +1186,19 @@ function RoomLobby(props: {
   account: Account | null;
   busy: boolean;
   currentPlayer: RoomPlayer | undefined;
+  fastestFinger: FastestFingerState | null;
+  fastestFingerOrder: FastestFingerItemKey[];
   isHost: boolean;
   onLeaveRoom: () => void;
+  onRefreshFastestFinger: () => void;
   onRefreshRoom: () => void;
   onStartRoom: () => void;
+  onSubmitFastestFinger: (order: FastestFingerItemKey[]) => void;
+  onUpdateFastestFingerOrder: (order: FastestFingerItemKey[]) => void;
   onUpdateReady: (isReady: boolean) => void;
   realtimeStatus: string;
   room: Room;
+  timerNow: number;
 }) {
   const activePlayers = props.room.players.filter((player) => !player.leftAt);
   const waiting = props.room.status === "waiting";
@@ -1122,10 +1274,38 @@ function RoomLobby(props: {
         ))}
       </div>
 
-      {props.room.status !== "waiting" && (
-        <div className="border border-[#f6d37a]/35 bg-[#061733]/92 p-4 text-sm leading-6 text-blue-100">
-          Game state is active. Fastest Finger, hot seat gameplay, and lifelines
-          are intentionally saved for later milestones.
+      {props.room.status === "fastest_finger" && (
+        <FastestFingerPanel
+          busy={props.busy}
+          fastestFinger={props.fastestFinger}
+          order={props.fastestFingerOrder}
+          onRefresh={props.onRefreshFastestFinger}
+          onSubmit={props.onSubmitFastestFinger}
+          onUpdateOrder={props.onUpdateFastestFingerOrder}
+          timerNow={props.timerNow}
+        />
+      )}
+
+      {props.room.status === "hot_seat" && (
+        <div className="border border-[#f6d37a]/45 bg-[#061733]/92 p-4 text-sm leading-6 text-blue-100">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+            Fastest Finger result
+          </p>
+          <h3 className="mt-2 text-2xl font-black text-white">
+            Winner: {props.fastestFinger?.winner?.displayName ?? "Loading..."}
+          </h3>
+          <p className="mt-2">
+            Hot Seat gameplay starts in Milestone 7. This room has correctly
+            moved from Fastest Finger to hot seat.
+          </p>
+          <button
+            className="mt-3 border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+            disabled={props.busy}
+            onClick={props.onRefreshFastestFinger}
+            type="button"
+          >
+            Refresh Result
+          </button>
         </div>
       )}
 
@@ -1197,6 +1377,195 @@ function RoomLobby(props: {
         Active players: {activePlayers.length}. Host transfer happens
         automatically if the host leaves.
       </p>
+    </div>
+  );
+}
+
+function FastestFingerPanel(props: {
+  busy: boolean;
+  fastestFinger: FastestFingerState | null;
+  onRefresh: () => void;
+  onSubmit: (order: FastestFingerItemKey[]) => void;
+  onUpdateOrder: (order: FastestFingerItemKey[]) => void;
+  order: FastestFingerItemKey[];
+  timerNow: number;
+}) {
+  const [draggingKey, setDraggingKey] = useState<FastestFingerItemKey | null>(
+    null,
+  );
+
+  if (!props.fastestFinger) {
+    return (
+      <div className="border border-[#f6d37a]/35 bg-[#061733]/92 p-4">
+        <p className="text-sm font-bold text-blue-100">
+          Loading Fastest Finger...
+        </p>
+        <button
+          className="mt-3 border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+          disabled={props.busy}
+          onClick={props.onRefresh}
+          type="button"
+        >
+          Refresh Fastest Finger
+        </button>
+      </div>
+    );
+  }
+
+  const keyedItems = new Map(
+    props.fastestFinger.items.map((item) => [item.key, item.text]),
+  );
+  const clientElapsedMs = props.timerNow - props.fastestFinger.loadedAt;
+  const synchronizedNow =
+    new Date(props.fastestFinger.serverNow).getTime() + clientElapsedMs;
+  const remainingMs = Math.max(
+    0,
+    new Date(props.fastestFinger.endsAt).getTime() - synchronizedNow,
+  );
+  const progressPercent = Math.max(0, Math.min(100, (remainingMs / 30000) * 100));
+  const secondsLeft = Math.ceil(remainingMs / 1000);
+  const submitted = Boolean(props.fastestFinger.submission);
+
+  function moveItem(from: number, to: number) {
+    if (to < 0 || to >= props.order.length || submitted) {
+      return;
+    }
+
+    const next = [...props.order];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    props.onUpdateOrder(next);
+  }
+
+  function dropOn(targetKey: FastestFingerItemKey) {
+    if (!draggingKey || draggingKey === targetKey || submitted) {
+      setDraggingKey(null);
+      return;
+    }
+
+    const from = props.order.indexOf(draggingKey);
+    const to = props.order.indexOf(targetKey);
+
+    if (from !== -1 && to !== -1) {
+      moveItem(from, to);
+    }
+
+    setDraggingKey(null);
+  }
+
+  return (
+    <div className="border border-[#f6d37a]/45 bg-[#040c1d] p-4 shadow-[0_0_45px_rgba(246,211,122,0.13)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+            Fastest Finger First
+          </p>
+          <h3 className="mt-2 text-2xl font-black text-white">
+            Round {props.fastestFinger.roundNumber}
+          </h3>
+        </div>
+        <div className="border border-[#f6d37a]/50 bg-[#071a3d] px-3 py-2 text-right">
+          <p className="font-mono text-2xl font-black text-[#f6d37a]">
+            {secondsLeft}
+          </p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/55">
+            seconds
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 h-4 overflow-hidden border border-[#f6d37a]/45 bg-[#020712]">
+        <div
+          className="h-full bg-[linear-gradient(90deg,#f6d37a,#ff9f2f,#ffffff)] shadow-[0_0_24px_rgba(255,159,47,0.95)] transition-[width] duration-200"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+
+      <p className="mt-4 text-lg font-black leading-7 text-white">
+        {props.fastestFinger.prompt}
+      </p>
+
+      <div className="mt-4 grid gap-2">
+        {props.order.map((key, index) => (
+          <div
+            className={`border bg-[#071a3d] p-3 transition ${
+              draggingKey === key
+                ? "border-[#ff9f2f] opacity-80"
+                : "border-[#244b91]"
+            } ${submitted ? "opacity-70" : "cursor-grab"}`}
+            draggable={!submitted}
+            key={key}
+            onDragOver={(event) => event.preventDefault()}
+            onDragStart={() => setDraggingKey(key)}
+            onDrop={() => dropOn(key)}
+          >
+            <div className="flex items-center gap-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center border border-[#f6d37a]/55 font-mono font-black text-[#f6d37a]">
+                {index + 1}
+              </span>
+              <p className="min-w-0 flex-1 font-black text-blue-50">
+                {keyedItems.get(key)}
+              </p>
+              <div className="flex shrink-0 gap-1">
+                <button
+                  aria-label={`Move ${keyedItems.get(key)} up`}
+                  className="border border-[#244b91] px-2 py-1 font-black text-blue-100 disabled:opacity-35"
+                  disabled={props.busy || submitted || index === 0}
+                  onClick={() => moveItem(index, index - 1)}
+                  type="button"
+                >
+                  ↑
+                </button>
+                <button
+                  aria-label={`Move ${keyedItems.get(key)} down`}
+                  className="border border-[#244b91] px-2 py-1 font-black text-blue-100 disabled:opacity-35"
+                  disabled={props.busy || submitted || index === props.order.length - 1}
+                  onClick={() => moveItem(index, index + 1)}
+                  type="button"
+                >
+                  ↓
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {submitted ? (
+        <div className="mt-4 border border-[#244b91] bg-[#061a3e] p-4 text-sm font-bold leading-6 text-blue-100">
+          {props.fastestFinger.winner ? (
+            <span className="text-[#f6d37a]">
+              Winner: {props.fastestFinger.winner.displayName}
+            </span>
+          ) : (
+            "Waiting for other players..."
+          )}
+        </div>
+      ) : (
+        <button
+          className="mt-4 w-full border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225] disabled:cursor-not-allowed disabled:opacity-55"
+          disabled={props.busy || remainingMs <= 0}
+          onClick={() => props.onSubmit(props.order)}
+          type="button"
+        >
+          Submit Order
+        </button>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-blue-100/58">
+        <span>
+          Submissions: {props.fastestFinger.submissionCount} /{" "}
+          {props.fastestFinger.eligiblePlayerCount}
+        </span>
+        <button
+          className="border border-[#244b91] px-3 py-2 font-black text-blue-100"
+          disabled={props.busy}
+          onClick={props.onRefresh}
+          type="button"
+        >
+          Refresh
+        </button>
+      </div>
     </div>
   );
 }

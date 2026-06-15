@@ -12,7 +12,9 @@ export type RoomStatus =
 export type GameState = {
   completedTurnAccountIds: string[];
   currentRoomStatus: Exclude<RoomStatus, "waiting">;
+  currentFastestFingerRoundId: string | null;
   eligibleAccountIds: string[];
+  fastestFingerWinnerAccountId: string | null;
   hostAccountId: string;
   hotSeatAccountId: string | null;
   id: string;
@@ -56,7 +58,9 @@ type RoomRow = {
 type GameStateRow = {
   completed_turn_account_ids: string[];
   current_room_status: Exclude<RoomStatus, "waiting">;
+  current_fastest_finger_round_id: string | null;
   eligible_account_ids: string[];
+  fastest_finger_winner_account_id: string | null;
   host_account_id: string;
   hot_seat_account_id: string | null;
   id: string;
@@ -134,7 +138,9 @@ function toPublicGameState(row: GameStateRow | null): GameState | null {
   return {
     completedTurnAccountIds: row.completed_turn_account_ids,
     currentRoomStatus: row.current_room_status,
+    currentFastestFingerRoundId: row.current_fastest_finger_round_id,
     eligibleAccountIds: row.eligible_account_ids,
+    fastestFingerWinnerAccountId: row.fastest_finger_winner_account_id,
     hostAccountId: row.host_account_id,
     hotSeatAccountId: row.hot_seat_account_id,
     id: row.id,
@@ -213,7 +219,7 @@ async function fetchRoomById(supabase: SupabaseClient, roomId: string) {
   const { data: gameState, error: gameStateError } = await supabase
     .from("game_states")
     .select(
-      "id, room_id, current_room_status, host_account_id, join_order, completed_turn_account_ids, eligible_account_ids, hot_seat_account_id",
+      "id, room_id, current_room_status, current_fastest_finger_round_id, host_account_id, join_order, completed_turn_account_ids, eligible_account_ids, fastest_finger_winner_account_id, hot_seat_account_id",
     )
     .eq("room_id", room.id)
     .maybeSingle();
@@ -229,7 +235,7 @@ async function fetchRoomById(supabase: SupabaseClient, roomId: string) {
   );
 }
 
-async function emitRoomEvent(
+export async function emitRoomEvent(
   supabase: SupabaseClient,
   input: {
     actorAccountId?: string;
@@ -239,7 +245,10 @@ async function emitRoomEvent(
       | "ready_changed"
       | "host_changed"
       | "room_status_changed"
-      | "game_started";
+      | "game_started"
+      | "fastest_finger_round_started"
+      | "fastest_finger_submitted"
+      | "fastest_finger_winner";
     payload?: Record<string, unknown>;
     roomId: string;
   },
@@ -578,8 +587,10 @@ export async function startRoom(
   const { error: gameStateError } = await supabase.from("game_states").upsert(
     {
       completed_turn_account_ids: [],
+      current_fastest_finger_round_id: null,
       current_room_status: "starting",
       eligible_account_ids: joinOrder,
+      fastest_finger_winner_account_id: null,
       host_account_id: room.hostAccountId,
       hot_seat_account_id: null,
       join_order: joinOrder,

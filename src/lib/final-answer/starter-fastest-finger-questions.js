@@ -1,0 +1,325 @@
+const orderedSets = [
+  {
+    category: "Space",
+    forwardPrompt: "Arrange these inner planets from closest to farthest from the Sun.",
+    reversePrompt: "Arrange these inner planets from farthest to closest from the Sun.",
+    ordered: ["Mercury", "Venus", "Earth", "Mars"],
+  },
+  {
+    category: "Space",
+    forwardPrompt: "Arrange these outer planets from closest to farthest from the Sun.",
+    reversePrompt: "Arrange these outer planets from farthest to closest from the Sun.",
+    ordered: ["Jupiter", "Saturn", "Uranus", "Neptune"],
+  },
+  {
+    category: "Geography",
+    forwardPrompt: "Arrange these oceans from largest to smallest by surface area.",
+    reversePrompt: "Arrange these oceans from smallest to largest by surface area.",
+    ordered: ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Southern Ocean"],
+  },
+  {
+    category: "Geography",
+    forwardPrompt: "Arrange these continents from largest to smallest by land area.",
+    reversePrompt: "Arrange these continents from smallest to largest by land area.",
+    ordered: ["Asia", "Africa", "North America", "South America"],
+  },
+  {
+    category: "Nature",
+    forwardPrompt: "Arrange these animals from heaviest to lightest on average.",
+    reversePrompt: "Arrange these animals from lightest to heaviest on average.",
+    ordered: ["African elephant", "Hippopotamus", "Giraffe", "Zebra"],
+  },
+  {
+    category: "Nature",
+    forwardPrompt: "Arrange these birds from largest to smallest on average.",
+    reversePrompt: "Arrange these birds from smallest to largest on average.",
+    ordered: ["Ostrich", "Emu", "Turkey", "Chicken"],
+  },
+  {
+    category: "Transport",
+    forwardPrompt: "Arrange these transport types from fastest to slowest typical speed.",
+    reversePrompt: "Arrange these transport types from slowest to fastest typical speed.",
+    ordered: ["Jet aircraft", "High-speed train", "Car", "Bicycle"],
+  },
+  {
+    category: "Technology",
+    forwardPrompt: "Arrange these storage units from smallest to largest.",
+    reversePrompt: "Arrange these storage units from largest to smallest.",
+    ordered: ["Kilobyte", "Megabyte", "Gigabyte", "Terabyte"],
+  },
+  {
+    category: "Science",
+    forwardPrompt: "Arrange these metric length units from shortest to longest.",
+    reversePrompt: "Arrange these metric length units from longest to shortest.",
+    ordered: ["Millimeter", "Centimeter", "Meter", "Kilometer"],
+  },
+  {
+    category: "Science",
+    forwardPrompt: "Arrange these metric mass units from lightest to heaviest.",
+    reversePrompt: "Arrange these metric mass units from heaviest to lightest.",
+    ordered: ["Milligram", "Gram", "Kilogram", "Tonne"],
+  },
+  {
+    category: "Landmarks",
+    forwardPrompt: "Arrange these landmarks from north to south.",
+    reversePrompt: "Arrange these landmarks from south to north.",
+    ordered: ["Statue of Liberty", "Eiffel Tower", "Pyramids of Giza", "Table Mountain"],
+  },
+  {
+    category: "Geography",
+    forwardPrompt: "Arrange these cities from north to south.",
+    reversePrompt: "Arrange these cities from south to north.",
+    ordered: ["Reykjavik", "London", "Rome", "Cairo"],
+  },
+  {
+    category: "Geography",
+    forwardPrompt: "Arrange these cities from west to east.",
+    reversePrompt: "Arrange these cities from east to west.",
+    ordered: ["Los Angeles", "New York", "London", "Tokyo"],
+  },
+  {
+    category: "Oceans & Rivers",
+    forwardPrompt: "Arrange these rivers from longest to shortest.",
+    reversePrompt: "Arrange these rivers from shortest to longest.",
+    ordered: ["Nile", "Amazon", "Yangtze", "Mississippi"],
+  },
+  {
+    category: "Buildings & Architecture",
+    forwardPrompt: "Arrange these structures from tallest to shortest.",
+    reversePrompt: "Arrange these structures from shortest to tallest.",
+    ordered: ["Burj Khalifa", "Shanghai Tower", "One World Trade Center", "Eiffel Tower"],
+  },
+  {
+    category: "Space",
+    forwardPrompt: "Arrange these space objects from smallest to largest typical size.",
+    reversePrompt: "Arrange these space objects from largest to smallest typical size.",
+    ordered: ["Asteroid", "Moon", "Planet", "Star"],
+  },
+  {
+    category: "Weather & Climate",
+    forwardPrompt: "Arrange these wind categories from weakest to strongest.",
+    reversePrompt: "Arrange these wind categories from strongest to weakest.",
+    ordered: ["Breeze", "Gale", "Storm", "Hurricane"],
+  },
+  {
+    category: "Science",
+    forwardPrompt: "Arrange these colors by wavelength from shortest to longest.",
+    reversePrompt: "Arrange these colors by wavelength from longest to shortest.",
+    ordered: ["Violet", "Blue", "Green", "Red"],
+  },
+  {
+    category: "Technology",
+    forwardPrompt: "Arrange these display resolutions from lowest to highest pixel count.",
+    reversePrompt: "Arrange these display resolutions from highest to lowest pixel count.",
+    ordered: ["HD", "Full HD", "Quad HD", "4K UHD"],
+  },
+  {
+    category: "Transport",
+    forwardPrompt: "Arrange these road speed examples from slowest to fastest.",
+    reversePrompt: "Arrange these road speed examples from fastest to slowest.",
+    ordered: ["Walking pace", "Cycling pace", "City driving", "Motorway driving"],
+  },
+  {
+    category: "Languages",
+    forwardPrompt: "Arrange these words alphabetically.",
+    reversePrompt: "Arrange these words in reverse alphabetical order.",
+    ordered: ["Apple", "Bridge", "Castle", "River"],
+  },
+  {
+    category: "Languages",
+    forwardPrompt: "Arrange these dictionary words alphabetically.",
+    reversePrompt: "Arrange these dictionary words in reverse alphabetical order.",
+    ordered: ["Amber", "Forest", "Harbor", "Mountain"],
+  },
+  {
+    category: "Food & Drink",
+    forwardPrompt: "Arrange these foods from shortest to longest usual cooking time.",
+    reversePrompt: "Arrange these foods from longest to shortest usual cooking time.",
+    ordered: ["Toast", "Pasta", "Baked potato", "Roast chicken"],
+  },
+  {
+    category: "Food & Drink",
+    forwardPrompt: "Arrange these drink containers from smallest to largest typical volume.",
+    reversePrompt: "Arrange these drink containers from largest to smallest typical volume.",
+    ordered: ["Cup", "Bottle", "Jug", "Barrel"],
+  },
+  {
+    category: "General Knowledge",
+    forwardPrompt: "Arrange these calendar units from shortest to longest.",
+    reversePrompt: "Arrange these calendar units from longest to shortest.",
+    ordered: ["Day", "Week", "Month", "Year"],
+  },
+  {
+    category: "General Knowledge",
+    forwardPrompt: "Arrange these time units from shortest to longest.",
+    reversePrompt: "Arrange these time units from longest to shortest.",
+    ordered: ["Second", "Minute", "Hour", "Day"],
+  },
+  {
+    category: "Nature",
+    forwardPrompt: "Arrange these trees from shortest to tallest typical mature height.",
+    reversePrompt: "Arrange these trees from tallest to shortest typical mature height.",
+    ordered: ["Apple tree", "Olive tree", "Pine tree", "Redwood tree"],
+  },
+  {
+    category: "Science",
+    forwardPrompt: "Arrange these materials from least to most dense.",
+    reversePrompt: "Arrange these materials from most to least dense.",
+    ordered: ["Cork", "Wood", "Aluminum", "Iron"],
+  },
+  {
+    category: "Technology",
+    forwardPrompt: "Arrange these network types from shortest to longest typical range.",
+    reversePrompt: "Arrange these network types from longest to shortest typical range.",
+    ordered: ["Bluetooth", "Wi-Fi", "Mobile network", "Satellite link"],
+  },
+  {
+    category: "Space",
+    forwardPrompt: "Arrange these from nearest to farthest from Earth.",
+    reversePrompt: "Arrange these from farthest to nearest from Earth.",
+    ordered: ["Moon", "Sun", "Jupiter", "Neptune"],
+  },
+  {
+    category: "Landmarks",
+    forwardPrompt: "Arrange these landmarks from west to east.",
+    reversePrompt: "Arrange these landmarks from east to west.",
+    ordered: ["Golden Gate Bridge", "Statue of Liberty", "Eiffel Tower", "Taj Mahal"],
+  },
+  {
+    category: "Geography",
+    forwardPrompt: "Arrange these countries from north to south by general location.",
+    reversePrompt: "Arrange these countries from south to north by general location.",
+    ordered: ["Norway", "Germany", "Egypt", "South Africa"],
+  },
+  {
+    category: "Weather & Climate",
+    forwardPrompt: "Arrange these climate zones from coldest to warmest.",
+    reversePrompt: "Arrange these climate zones from warmest to coldest.",
+    ordered: ["Polar", "Subarctic", "Temperate", "Tropical"],
+  },
+  {
+    category: "Oceans & Rivers",
+    forwardPrompt: "Arrange these bodies of water from smallest to largest typical scale.",
+    reversePrompt: "Arrange these bodies of water from largest to smallest typical scale.",
+    ordered: ["Pond", "Lake", "Sea", "Ocean"],
+  },
+  {
+    category: "Buildings & Architecture",
+    forwardPrompt: "Arrange these building types from fewest to most typical floors.",
+    reversePrompt: "Arrange these building types from most to fewest typical floors.",
+    ordered: ["Bungalow", "Townhouse", "Apartment block", "Skyscraper"],
+  },
+  {
+    category: "Transport",
+    forwardPrompt: "Arrange these vehicles from fewest to most wheels.",
+    reversePrompt: "Arrange these vehicles from most to fewest wheels.",
+    ordered: ["Unicycle", "Bicycle", "Car", "Six-wheel truck"],
+  },
+  {
+    category: "Science",
+    forwardPrompt: "Arrange these states of matter from lowest to highest typical particle energy.",
+    reversePrompt: "Arrange these states of matter from highest to lowest typical particle energy.",
+    ordered: ["Solid", "Liquid", "Gas", "Plasma"],
+  },
+  {
+    category: "General Knowledge",
+    forwardPrompt: "Arrange these book sections from front to back.",
+    reversePrompt: "Arrange these book sections from back to front.",
+    ordered: ["Cover", "Contents page", "Chapter one", "Index"],
+  },
+  {
+    category: "Technology",
+    forwardPrompt: "Arrange these common computer parts from smallest to largest physical size.",
+    reversePrompt: "Arrange these common computer parts from largest to smallest physical size.",
+    ordered: ["Microchip", "Memory stick", "Keyboard", "Monitor"],
+  },
+  {
+    category: "Nature",
+    forwardPrompt: "Arrange these life stages of a butterfly from earliest to latest.",
+    reversePrompt: "Arrange these life stages of a butterfly from latest to earliest.",
+    ordered: ["Egg", "Caterpillar", "Chrysalis", "Butterfly"],
+  },
+  {
+    category: "Nature",
+    forwardPrompt: "Arrange these frog life stages from earliest to latest.",
+    reversePrompt: "Arrange these frog life stages from latest to earliest.",
+    ordered: ["Egg", "Tadpole", "Froglet", "Adult frog"],
+  },
+  {
+    category: "Science",
+    forwardPrompt: "Arrange these layers of Earth from outside to inside.",
+    reversePrompt: "Arrange these layers of Earth from inside to outside.",
+    ordered: ["Crust", "Mantle", "Outer core", "Inner core"],
+  },
+  {
+    category: "Space",
+    forwardPrompt: "Arrange these lunar phases in order after a new moon.",
+    reversePrompt: "Arrange these lunar phases in reverse order before a new moon.",
+    ordered: ["Waxing crescent", "First quarter", "Waxing gibbous", "Full moon"],
+  },
+  {
+    category: "Food & Drink",
+    forwardPrompt: "Arrange these food storage temperatures from coldest to warmest.",
+    reversePrompt: "Arrange these food storage temperatures from warmest to coldest.",
+    ordered: ["Freezer", "Fridge", "Cool pantry", "Warm oven"],
+  },
+  {
+    category: "Geography",
+    forwardPrompt: "Arrange these Australian cities from north to south.",
+    reversePrompt: "Arrange these Australian cities from south to north.",
+    ordered: ["Darwin", "Brisbane", "Sydney", "Melbourne"],
+  },
+  {
+    category: "Transport",
+    forwardPrompt: "Arrange these rail systems from shortest to longest typical journey range.",
+    reversePrompt: "Arrange these rail systems from longest to shortest typical journey range.",
+    ordered: ["Tram", "Metro", "Regional train", "Intercity train"],
+  },
+  {
+    category: "Landmarks",
+    forwardPrompt: "Arrange these landmarks from oldest to newest approximate completion.",
+    reversePrompt: "Arrange these landmarks from newest to oldest approximate completion.",
+    ordered: ["Great Pyramid of Giza", "Colosseum", "Eiffel Tower", "Sydney Opera House"],
+  },
+  {
+    category: "Technology",
+    forwardPrompt: "Arrange these web address parts from broadest to most specific.",
+    reversePrompt: "Arrange these web address parts from most specific to broadest.",
+    ordered: ["Top-level domain", "Domain name", "Folder path", "File name"],
+  },
+  {
+    category: "Science",
+    forwardPrompt: "Arrange these pH examples from most acidic to most alkaline.",
+    reversePrompt: "Arrange these pH examples from most alkaline to most acidic.",
+    ordered: ["Lemon juice", "Tomato juice", "Pure water", "Soapy water"],
+  },
+  {
+    category: "General Knowledge",
+    forwardPrompt: "Arrange these school stages from earliest to latest.",
+    reversePrompt: "Arrange these school stages from latest to earliest.",
+    ordered: ["Kindergarten", "Primary school", "Middle school", "High school"],
+  },
+];
+
+function rowFromOrderedSet(set, reverse) {
+  const ordered = reverse ? [...set.ordered].reverse() : set.ordered;
+  const shuffled = [ordered[2], ordered[0], ordered[3], ordered[1]];
+  const keyFor = new Map(shuffled.map((item, index) => [item, `item_${index + 1}`]));
+
+  return {
+    active: true,
+    category: set.category,
+    correct_order: ordered.map((item) => keyFor.get(item)),
+    item_1: shuffled[0],
+    item_2: shuffled[1],
+    item_3: shuffled[2],
+    item_4: shuffled[3],
+    prompt: reverse ? set.reversePrompt : set.forwardPrompt,
+    report_count: 0,
+  };
+}
+
+export const starterFastestFingerQuestions = orderedSets.flatMap((set) => [
+  rowFromOrderedSet(set, false),
+  rowFromOrderedSet(set, true),
+]);
