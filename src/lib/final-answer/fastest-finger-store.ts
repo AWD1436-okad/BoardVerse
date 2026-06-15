@@ -594,6 +594,33 @@ export async function submitFastestFingerOrder(
     round,
   });
 
+  if (round.status === "completed" && !round.winner_account_id) {
+    const refreshedGameState = await fetchGameState(supabase, input.roomId);
+
+    if (!refreshedGameState) {
+      return { error: "game_state_not_found" as const, state: null };
+    }
+
+    const nextRound = await createRound(supabase, {
+      gameState: refreshedGameState,
+      roomId: input.roomId,
+    });
+
+    if (!nextRound) {
+      return { error: "question_bank_empty" as const, state: null };
+    }
+
+    return {
+      error: null,
+      state: await publicState(supabase, {
+        account: input.account,
+        gameState: refreshedGameState,
+        roomId: input.roomId,
+        round: nextRound,
+      }),
+    };
+  }
+
   return {
     error: null,
     state: await publicState(supabase, {
