@@ -279,3 +279,26 @@ What is still not built:
 
 Next milestone:
 - Milestone 10: full question bank expansion, question quality review, and admin tools.
+
+## 2026-06-16 - Milestone 10 Full Question Bank and Admin Tools Completed
+
+Milestone 10 expands the Hot Seat question bank and adds owner/admin review tools.
+
+What works now:
+- The Hot Seat seed bank contains 1,200 active questions: 100 questions for each of the 12 prize levels.
+- The local seed data has an exact correct-answer balance: A: 300, B: 300, C: 300, D: 300.
+- A question audit script checks total count, per-level count, A/B/C/D balance, duplicate question text, answer completeness, correct-answer validity, prize-level mapping, and Fastest Finger starter quality.
+- The existing 100 Fastest Finger ordering questions are audited for duplicates, invalid order keys, and blocked topic terms.
+- Admin accounts can open a question review panel.
+- Admins can view question totals, active/inactive counts, report counts, level counts, category filters, search, A/B/C/D balance, reported question reasons/notes, and context.
+- Admins can mark questions inactive and reactivate them.
+- The public random-question API still returns active questions only and does not expose the correct answer before reveal.
+
+What is still not built:
+- Advanced in-place question editing is not built.
+- Chat is not built.
+- Sound effects are not built.
+- The temporary game-state debug panel is still visible during active rooms.
+
+Next milestone:
+- Milestone 11: final polish, bug fixing, manual testing support, deployment/handover, and launch readiness.

@@ -546,3 +546,30 @@ Known limits:
 - The full 1,200-question set is not built.
 - Admin question editing/deactivation tools are not built.
 - Chat and sound effects are not built.
+
+## 2026-06-16 - Milestone 10 Full Question Bank and Admin Tools
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run question:audit` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Local data verification:
+- Hot Seat seed questions: 1,200.
+- Per-level count: 100 questions at each level from 1 through 12.
+- Correct-answer balance: A: 300, B: 300, C: 300, D: 300.
+- Exact duplicate Hot Seat question text: none found by the audit.
+- Fastest Finger starter questions: 100.
+- Fastest Finger audit found no duplicate prompts or invalid order keys.
+
+Implementation verification:
+- Added admin question summary API and panel.
+- Admin question summary includes total, active, inactive, reported, level counts, category counts, and answer balance.
+- Admin filters support level, category, active/inactive/all, minimum report count, and search.
+- Admin can mark questions inactive and reactivate them through server routes.
+- Question audit verifies answer completeness, prize amount mapping, correct-answer validity, duplicates, and banned-topic terms in the seed data.
+
+Production verification:
+- To be completed after the deployment reaches Vercel Ready and the 1,200-question seed is applied through the protected admin seed route.

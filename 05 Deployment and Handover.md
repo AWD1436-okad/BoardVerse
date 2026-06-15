@@ -153,7 +153,7 @@ Question setup:
 2. Deploy the app.
 3. Make an owner/admin account by setting `accounts.is_admin` to `true` for the chosen username in Supabase.
 4. As that admin account, call the protected seed route or use the included seed SQL to insert starter questions.
-5. Confirm there are 240 active questions, 20 at each level.
+5. Confirm there are 1,200 active Hot Seat questions, 100 at each level.
 
 Realtime game-state setup:
 1. Run `supabase/final-answer-game-state-schema.sql`.
@@ -224,8 +224,17 @@ In-game question reporting:
 - A player cannot repeatedly report the same Hot Seat question turn.
 
 Starter Hot Seat question data:
-- The current 240 starter Hot Seat questions are balanced across correct answers A, B, C, and D.
-- The full 1,200-question set is still a later milestone and should include owner review before broad use.
+- The current Hot Seat seed file contains 1,200 questions, 100 at each level.
+- Correct answers are balanced across A, B, C, and D.
+- Run `npm.cmd run question:audit` before deployment when question data changes.
+- The question bank should still receive owner review before broad use.
+
+Milestone 10 admin question tools:
+- Admin-only API: `/api/admin/questions`.
+- Admins are controlled through `accounts.is_admin`.
+- Admins can view question counts, active/inactive counts, report counts, answer balance, report details, and question filters.
+- Admins can mark questions inactive or reactivate questions.
+- Advanced direct editing of question text/answers is intentionally not built yet.
 
 Important:
 - Do not paste Supabase keys into chat.
@@ -255,9 +264,10 @@ Standard production flow:
 - Milestone 7 Hot Seat Core Gameplay is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 8 Lifelines is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 9 Final Results, Stats, and In-Game Reporting is implemented, deployed, connected to Supabase, and production-verified through API/database checks.
-- No chat, sound effects, full question bank, or advanced admin question editing exists yet.
+- Milestone 10 Full Question Bank and Admin Tools is implemented locally and should be production-verified after deployment and seeding.
+- No chat, sound effects, or advanced admin question editing exists yet.
 - Starting a room now creates a `game_states` record, starts Fastest Finger, moves the winner to `hot_seat`, and plays through hot-seat turns until the room is `completed`.
 - Hot Seat players can now use 50:50, Ask The Audience, and Pass.
-- Full 1,200-question generation/import process still needs implementation and review.
+- The 1,200-question generation/import process exists, but owner review is still needed before broad family use.
 - The temporary game-state debug panel should be removed or hidden before final launch.
 - Start Game should eventually become a single Postgres transaction/function to reduce partial-update risk.

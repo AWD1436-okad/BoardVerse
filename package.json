@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "money:audit": "node scripts/money-audit.mjs",
+    "question:audit": "node scripts/question-audit.mjs",
     "seed:fastest-finger": "node scripts/seed-fastest-finger.mjs"
   },
   "dependencies": {

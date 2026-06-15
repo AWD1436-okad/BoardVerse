@@ -23,7 +23,7 @@
 - Use Supabase Postgres for durable data.
 - Use server-side routes/actions for account creation and PIN verification.
 - Use Supabase Realtime or a simple server-backed realtime approach for rooms and game state.
-- Start with a small seeded question set for development, then import/generate the full 1,200-question database after the schema and review process are ready.
+- Use the full 1,200-question Hot Seat seed bank after Milestone 10, with 100 questions per level and an even A/B/C/D correct-answer spread.
 - Use a custom username/PIN account table for Final Answer instead of Supabase Auth email/password, because this private family app requires username plus 4-digit PIN.
 - Hash PINs server-side before database storage.
 - Use HTTP-only session cookies with hashed session tokens stored in Supabase.
@@ -37,7 +37,7 @@
 - Keep chat out of Milestone 3 to avoid adding moderation and safety scope before the lobby foundation is stable.
 - Store questions in Supabase `questions` with a separate `question_reports` table.
 - Keep public question selection behind server routes and exclude `correct_answer` from public random-question responses.
-- Use 240 generated starter questions first, not the full 1,200-question target, so the schema and report flow can be proven before scaling content.
+- Keep the generated 1,200-question Hot Seat bank auditable through `npm.cmd run question:audit` before deployment.
 - Use an `is_admin` boolean on accounts for the first admin foundation.
 - Keep the admin seed route protected by account admin status.
 - Store Fastest Finger ordering questions separately from hot-seat questions.
@@ -64,17 +64,17 @@
 - Count Fastest Finger wins from completed Fastest Finger rounds when final results are finalized.
 - Allow Hot Seat question reports during gameplay, but store them server-side with room and turn context and do not expose correct answers.
 - Block repeat reporting for the same Hot Seat question turn with a database unique index.
-- Keep the current starter Hot Seat dataset at 240 questions until the Milestone 10 quality-review workflow is ready.
+- Keep admin question tools basic for the MVP: admins can filter, search, review reports, deactivate, and reactivate questions, but advanced text editing is deferred.
 
 ## Open Risks
 
 - Fair timing for Fastest Finger First needs careful server-side design.
-- Large AI-generated question set needs quality review to avoid wrong, ambiguous, political, person-focused, religious, or overly obscure questions.
+- Large generated question set needs owner review to catch wrong, ambiguous, unsuitable, or overly obscure questions before heavy family use.
 - 4-digit PIN accounts are simple for family use but weaker than full passwords, so rate limiting and careful storage matter.
 - The Vercel project name is still `boardverse`; this is not public-facing but may be renamed later for clarity.
 - The current Start Game flow performs several server operations in sequence rather than one database transaction. It is acceptable for the private MVP foundation but should be hardened with a Postgres function before heavier gameplay or larger groups.
 - Realtime room events reveal only event metadata to subscribed browser clients. This is acceptable for the private MVP, but access policies should be reviewed again before broader public use.
-- Starter questions are suitable for system testing but still need owner review before heavy family use.
+- The 1,200-question Hot Seat bank is suitable for system testing but still needs owner review before heavy family use.
 - Fastest Finger starter questions are suitable for gameplay testing, but should still be reviewed and expanded before broad family use.
 - Hot Seat turn advancement currently uses sequential server operations rather than one transaction. This is acceptable for the private MVP but should eventually move into a Postgres function for stronger consistency.
 - Lifeline updates currently use sequential server operations rather than one transaction. This is acceptable for the private MVP, but 50:50, Pass, and reveal transitions should eventually move into Postgres functions for stronger consistency under simultaneous clicks.

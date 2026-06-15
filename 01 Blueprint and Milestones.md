@@ -178,9 +178,27 @@ Implementation note:
 - Added Hot Seat question reporting with room and turn context, optional notes, report-count updates, and one-report-per-question-turn protection.
 - Admin report review now includes individual report reasons, notes, room ids, and turn ids.
 
-### Milestone 10 - Full Question Bank, Review, and Admin Tools
+### Milestone 10 - Full Question Bank, Review, and Admin Tools - Completed 2026-06-16
 
 - Expand from 240 starter Hot Seat questions to the planned 1,200 questions.
 - Add question quality review workflow for wrong, ambiguous, unsuitable, or inactive questions.
-- Add admin tools for reviewing reports and deactivating or correcting questions.
+- Add admin tools for reviewing reports and deactivating or reactivating questions.
 - Continue responsive UI polish, browser testing of core flows, production verification, and handover updates.
+
+Implementation note:
+- The Hot Seat question bank now has 1,200 seed questions: 100 for each of the 12 prize levels.
+- Correct answers are balanced exactly across A, B, C, and D in the seed data.
+- Added a local question audit for total count, per-level counts, answer balance, duplicates, answer completeness, prize-level mapping, and Fastest Finger review.
+- Fastest Finger remains at 100 reviewed starter ordering questions.
+- Added an admin-only question review API and panel using `accounts.is_admin`.
+- Admins can view total/active/inactive/reported counts, per-level counts, answer balance, reported questions, report reasons/notes, and can mark questions inactive or reactivate them.
+- Advanced question editing is intentionally deferred.
+
+### Milestone 11 - Final Polish, Manual Testing Support, and Launch Readiness
+
+- Remove or hide temporary debug UI before launch.
+- Full manual click-through support for accounts, rooms, Fastest Finger, Hot Seat, lifelines, results, reporting, and admin review.
+- Fix bugs found during family testing.
+- Improve mobile polish, accessibility, empty states, and error messages.
+- Prepare final handover and launch checklist.
+- Decide whether to add simple sound effects or keep them after launch.

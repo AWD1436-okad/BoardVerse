@@ -37,6 +37,24 @@ export type AdminReportedQuestion = PublicQuestion & {
   }>;
 };
 
+export type AdminQuestion = AdminReportedQuestion;
+
+export type AdminQuestionSummary = {
+  activeCount: number;
+  answerBalance: Record<"A" | "B" | "C" | "D", number>;
+  categories: Array<{ activeCount: number; category: string; totalCount: number }>;
+  inactiveCount: number;
+  levelCounts: Array<{
+    activeCount: number;
+    inactiveCount: number;
+    level: number;
+    prizeAmount: number;
+    totalCount: number;
+  }>;
+  reportedCount: number;
+  totalCount: number;
+};
+
 type QuestionRow = {
   active?: boolean;
   answer_a: string;
@@ -84,6 +102,14 @@ type ReportRow = {
   note: string | null;
   reason: QuestionReportReason;
   room_id: string | null;
+};
+
+type AdminQuestionFilters = {
+  active?: "active" | "inactive" | "all";
+  category?: string;
+  level?: number;
+  minReportCount?: number;
+  search?: string;
 };
 
 export const questionPrizes = [
@@ -296,6 +322,210 @@ export async function listReportedQuestions(supabase: SupabaseClient) {
       };
     }),
   })) satisfies AdminReportedQuestion[];
+}
+
+async function reportsForQuestions(supabase: SupabaseClient, questionIds: string[]) {
+  if (!questionIds.length) {
+    return new Map<string, ReportRow[]>();
+  }
+
+  const { data: reports, error } = await supabase
+    .from("question_reports")
+    .select(
+      "question_id, account_id, reason, note, room_id, hot_seat_turn_id, created_at, accounts(username, display_name)",
+    )
+    .in("question_id", questionIds)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  const reportsByQuestion = new Map<string, ReportRow[]>();
+  for (const report of (reports ?? []) as unknown as Array<
+    ReportRow & { question_id: string }
+  >) {
+    reportsByQuestion.set(report.question_id, [
+      ...(reportsByQuestion.get(report.question_id) ?? []),
+      report,
+    ]);
+  }
+
+  return reportsByQuestion;
+}
+
+function adminQuestion(
+  question: QuestionRow,
+  reportsByQuestion: Map<string, ReportRow[]>,
+): AdminQuestion {
+  return {
+    ...publicQuestion(question),
+    active: Boolean(question.active),
+    correctAnswer: question.correct_answer ?? "A",
+    createdAt: question.created_at ?? "",
+    reportCount: question.report_count ?? 0,
+    reports: (reportsByQuestion.get(question.id) ?? []).map((report) => {
+      const account = accountForReport(report);
+
+      return {
+        accountId: report.account_id,
+        createdAt: report.created_at,
+        displayName: account?.display_name ?? "Unknown",
+        note: report.note,
+        reason: report.reason,
+        roomId: report.room_id,
+        turnId: report.hot_seat_turn_id,
+        username: account?.username ?? "unknown",
+      };
+    }),
+  };
+}
+
+export async function getQuestionAdminSummary(
+  supabase: SupabaseClient,
+): Promise<AdminQuestionSummary> {
+  const { data, error } = await supabase
+    .from("questions")
+    .select("level, prize_amount, category, active, correct_answer, report_count");
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = (data ?? []) as QuestionRow[];
+  const answerBalance = { A: 0, B: 0, C: 0, D: 0 };
+  const levelCounts = questionPrizes.map((prizeAmount, index) => ({
+    activeCount: 0,
+    inactiveCount: 0,
+    level: index + 1,
+    prizeAmount,
+    totalCount: 0,
+  }));
+  const categoryCounts = new Map<
+    string,
+    { activeCount: number; category: string; totalCount: number }
+  >();
+
+  for (const row of rows) {
+    const key = row.correct_answer ?? "A";
+    answerBalance[key] += 1;
+
+    const level = levelCounts[row.level - 1];
+    if (level) {
+      level.totalCount += 1;
+      if (row.active) {
+        level.activeCount += 1;
+      } else {
+        level.inactiveCount += 1;
+      }
+    }
+
+    const category = categoryCounts.get(row.category) ?? {
+      activeCount: 0,
+      category: row.category,
+      totalCount: 0,
+    };
+    category.totalCount += 1;
+    if (row.active) {
+      category.activeCount += 1;
+    }
+    categoryCounts.set(row.category, category);
+  }
+
+  return {
+    activeCount: rows.filter((row) => row.active).length,
+    answerBalance,
+    categories: [...categoryCounts.values()].sort((a, b) =>
+      a.category.localeCompare(b.category),
+    ),
+    inactiveCount: rows.filter((row) => !row.active).length,
+    levelCounts,
+    reportedCount: rows.filter((row) => (row.report_count ?? 0) > 0).length,
+    totalCount: rows.length,
+  };
+}
+
+export async function listAdminQuestions(
+  supabase: SupabaseClient,
+  filters: AdminQuestionFilters,
+) {
+  let query = supabase
+    .from("questions")
+    .select(
+      "id, question_text, answer_a, answer_b, answer_c, answer_d, correct_answer, level, prize_amount, category, active, report_count, created_at",
+    )
+    .order("level", { ascending: true })
+    .order("report_count", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (filters.level) {
+    query = query.eq("level", filters.level);
+  }
+
+  if (filters.category) {
+    query = query.eq("category", filters.category);
+  }
+
+  if (filters.active === "active") {
+    query = query.eq("active", true);
+  }
+
+  if (filters.active === "inactive") {
+    query = query.eq("active", false);
+  }
+
+  if (filters.minReportCount && filters.minReportCount > 0) {
+    query = query.gte("report_count", filters.minReportCount);
+  }
+
+  if (filters.search?.trim()) {
+    const safeSearch = filters.search.trim().replaceAll("%", "\\%");
+    query = query.ilike("question_text", `%${safeSearch}%`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  const questions = (data ?? []) as QuestionRow[];
+  const reportsByQuestion = await reportsForQuestions(
+    supabase,
+    questions.map((question) => question.id),
+  );
+
+  return questions.map((question) => adminQuestion(question, reportsByQuestion));
+}
+
+export async function setQuestionActive(
+  supabase: SupabaseClient,
+  input: { active: boolean; questionId: string },
+) {
+  const { data, error } = await supabase
+    .from("questions")
+    .update({ active: input.active, updated_at: new Date().toISOString() })
+    .eq("id", input.questionId)
+    .select(
+      "id, question_text, answer_a, answer_b, answer_c, answer_d, correct_answer, level, prize_amount, category, active, report_count, created_at",
+    )
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return { error: "question_not_found" as const, question: null };
+  }
+
+  const reportsByQuestion = await reportsForQuestions(supabase, [input.questionId]);
+
+  return {
+    error: null,
+    question: adminQuestion(data as QuestionRow, reportsByQuestion),
+  };
 }
 
 export async function seedStarterQuestions(supabase: SupabaseClient) {

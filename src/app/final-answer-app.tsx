@@ -183,6 +183,22 @@ type ReportedQuestion = Question & {
   }>;
 };
 
+type AdminQuestionSummary = {
+  activeCount: number;
+  answerBalance: Record<HotSeatAnswerKey, number>;
+  categories: Array<{ activeCount: number; category: string; totalCount: number }>;
+  inactiveCount: number;
+  levelCounts: Array<{
+    activeCount: number;
+    inactiveCount: number;
+    level: number;
+    prizeAmount: number;
+    totalCount: number;
+  }>;
+  reportedCount: number;
+  totalCount: number;
+};
+
 type ApiResponse = {
   account?: Account | null;
   code?: string;
@@ -198,6 +214,7 @@ type ApiResponse = {
   reportCount?: number;
   results?: GameResult[];
   room?: Room | null;
+  summary?: AdminQuestionSummary;
 };
 
 const ladder = [
@@ -262,6 +279,22 @@ const reportReasonLabels = Object.fromEntries(reportReasons) as Record<
   string
 >;
 
+const questionCategories = [
+  "Geography",
+  "Science",
+  "Nature",
+  "Space",
+  "Technology",
+  "Landmarks",
+  "Languages",
+  "Food & Drink",
+  "Weather & Climate",
+  "Transport",
+  "Oceans & Rivers",
+  "Buildings & Architecture",
+  "General Knowledge",
+];
+
 function formatStat(key: keyof AccountStats, value: number) {
   if (key === "highestPrizeWon" || key === "totalMoneyWon") {
     return `$${value.toLocaleString()}`;
@@ -309,6 +342,13 @@ export function FinalAnswerApp() {
   const [reportedQuestions, setReportedQuestions] = useState<ReportedQuestion[]>(
     [],
   );
+  const [adminQuestionSummary, setAdminQuestionSummary] =
+    useState<AdminQuestionSummary | null>(null);
+  const [adminQuestionLevel, setAdminQuestionLevel] = useState("all");
+  const [adminQuestionCategory, setAdminQuestionCategory] = useState("");
+  const [adminQuestionActive, setAdminQuestionActive] = useState("all");
+  const [adminQuestionSearch, setAdminQuestionSearch] = useState("");
+  const [adminQuestionMinReports, setAdminQuestionMinReports] = useState(0);
 
   const [signupUsername, setSignupUsername] = useState("");
   const [signupDisplayName, setSignupDisplayName] = useState("");
@@ -1209,18 +1249,64 @@ export function FinalAnswerApp() {
     setMessage("");
 
     try {
-      const response = await fetch("/api/admin/questions/reports");
+      const params = new URLSearchParams({
+        active: adminQuestionActive,
+        level: adminQuestionLevel,
+        minReportCount: String(adminQuestionMinReports),
+      });
+
+      if (adminQuestionCategory) {
+        params.set("category", adminQuestionCategory);
+      }
+
+      if (adminQuestionSearch.trim()) {
+        params.set("search", adminQuestionSearch.trim());
+      }
+
+      const response = await fetch(`/api/admin/questions?${params.toString()}`);
       const data = (await response.json()) as ApiResponse;
 
       if (!response.ok) {
-        showApiError(data, "Could not load reported questions.");
+        showApiError(data, "Could not load admin questions.");
         return;
       }
 
+      setAdminQuestionSummary(data.summary ?? null);
       setReportedQuestions(data.questions ?? []);
-      setMessage(`Loaded ${data.questions?.length ?? 0} reported questions.`);
+      setMessage(`Loaded ${data.questions?.length ?? 0} admin questions.`);
     } catch {
-      setMessage("Could not load reported questions. Try again.");
+      setMessage("Could not load admin questions. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleAdminQuestion(questionId: string, active: boolean) {
+    if (!account?.isAdmin) {
+      setMessage("Only admins can update questions.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/questions", {
+        body: JSON.stringify({ active, questionId }),
+        headers: { "Content-Type": "application/json" },
+        method: "PATCH",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok) {
+        showApiError(data, "Could not update question.");
+        return;
+      }
+
+      await loadAdminReports();
+      setMessage(active ? "Question reactivated." : "Question marked inactive.");
+    } catch {
+      setMessage("Could not update question. Try again.");
     } finally {
       setBusy(false);
     }
@@ -1425,12 +1511,24 @@ export function FinalAnswerApp() {
                 />
                 <QuestionFoundationPanel
                   account={account}
+                  adminActiveFilter={adminQuestionActive}
+                  adminCategoryFilter={adminQuestionCategory}
+                  adminLevelFilter={adminQuestionLevel}
+                  adminMinReports={adminQuestionMinReports}
+                  adminSearch={adminQuestionSearch}
+                  adminSummary={adminQuestionSummary}
                   busy={busy}
                   onLoadAdminReports={loadAdminReports}
                   onLoadQuestion={loadQuestion}
+                  onAdminActiveFilterChange={setAdminQuestionActive}
+                  onAdminCategoryFilterChange={setAdminQuestionCategory}
+                  onAdminLevelFilterChange={setAdminQuestionLevel}
+                  onAdminMinReportsChange={setAdminQuestionMinReports}
+                  onAdminSearchChange={setAdminQuestionSearch}
                   onQuestionLevelChange={setQuestionLevel}
                   onReportReasonChange={setReportReason}
                   onSubmitQuestionReport={submitQuestionReport}
+                  onToggleQuestionActive={toggleAdminQuestion}
                   question={question}
                   questionLevel={questionLevel}
                   reportReason={reportReason}
@@ -2750,12 +2848,24 @@ function ProfilePanel(props: {
 
 function QuestionFoundationPanel(props: {
   account: Account;
+  adminActiveFilter: string;
+  adminCategoryFilter: string;
+  adminLevelFilter: string;
+  adminMinReports: number;
+  adminSearch: string;
+  adminSummary: AdminQuestionSummary | null;
   busy: boolean;
+  onAdminActiveFilterChange: (value: string) => void;
+  onAdminCategoryFilterChange: (value: string) => void;
+  onAdminLevelFilterChange: (value: string) => void;
+  onAdminMinReportsChange: (value: number) => void;
+  onAdminSearchChange: (value: string) => void;
   onLoadAdminReports: () => void;
   onLoadQuestion: () => void;
   onQuestionLevelChange: (value: number) => void;
   onReportReasonChange: (value: ReportReason) => void;
   onSubmitQuestionReport: () => void;
+  onToggleQuestionActive: (questionId: string, active: boolean) => void;
   question: Question | null;
   questionLevel: number;
   reportReason: ReportReason;
@@ -2857,7 +2967,7 @@ function QuestionFoundationPanel(props: {
         <div className="mt-4 border border-[#f6d37a]/45 bg-[#050f25] p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-black text-[#f6d37a]">
-              Admin report review
+              Admin question review
             </p>
             <button
               className="border border-[#244b91] bg-[#0d2450]/80 px-3 py-2 text-sm font-black text-blue-100 disabled:cursor-not-allowed disabled:opacity-55"
@@ -2865,12 +2975,155 @@ function QuestionFoundationPanel(props: {
               onClick={props.onLoadAdminReports}
               type="button"
             >
-              Load Reports
+              Load Questions
             </button>
           </div>
+
+          {props.adminSummary && (
+            <div className="mt-4 grid gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  ["Total", props.adminSummary.totalCount],
+                  ["Active", props.adminSummary.activeCount],
+                  ["Inactive", props.adminSummary.inactiveCount],
+                  ["Reported", props.adminSummary.reportedCount],
+                ].map(([label, value]) => (
+                  <div
+                    className="border border-[#244b91] bg-[#071a3d] p-3"
+                    key={label}
+                  >
+                    <p className="font-mono text-xl font-black text-[#f6d37a]">
+                      {Number(value).toLocaleString()}
+                    </p>
+                    <p className="mt-1 text-[11px] font-black uppercase tracking-[0.12em] text-blue-100/62">
+                      {label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border border-[#244b91] bg-[#071a3d] p-3">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-100/62">
+                  Answer balance
+                </p>
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  {(["A", "B", "C", "D"] as HotSeatAnswerKey[]).map((key) => (
+                    <div
+                      className="border border-[#1c3f7d] bg-[#020712] px-2 py-2 text-center"
+                      key={key}
+                    >
+                      <p className="font-mono text-sm font-black text-[#f6d37a]">
+                        {key}
+                      </p>
+                      <p className="font-mono text-sm text-blue-100">
+                        {props.adminSummary?.answerBalance[key] ?? 0}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {props.adminSummary.levelCounts.map((level) => (
+                  <div
+                    className="border border-[#1c3f7d] bg-[#071a3d] px-3 py-2"
+                    key={level.level}
+                  >
+                    <p className="font-mono text-xs font-black text-[#f6d37a]">
+                      L{level.level} | {formatPrize(level.prizeAmount)}
+                    </p>
+                    <p className="mt-1 text-xs text-blue-100/65">
+                      {level.activeCount} active / {level.totalCount} total
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm font-bold text-blue-50">
+              Level
+              <select
+                className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none transition focus:border-[#f6d37a]"
+                onChange={(event) =>
+                  props.onAdminLevelFilterChange(event.target.value)
+                }
+                value={props.adminLevelFilter}
+              >
+                <option value="all">All levels</option>
+                {Array.from({ length: 12 }, (_, index) => index + 1).map(
+                  (level) => (
+                    <option key={level} value={String(level)}>
+                      Level {level}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+
+            <label className="block text-sm font-bold text-blue-50">
+              Category
+              <select
+                className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none transition focus:border-[#f6d37a]"
+                onChange={(event) =>
+                  props.onAdminCategoryFilterChange(event.target.value)
+                }
+                value={props.adminCategoryFilter}
+              >
+                <option value="">All categories</option>
+                {questionCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm font-bold text-blue-50">
+              Status
+              <select
+                className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none transition focus:border-[#f6d37a]"
+                onChange={(event) =>
+                  props.onAdminActiveFilterChange(event.target.value)
+                }
+                value={props.adminActiveFilter}
+              >
+                <option value="all">All questions</option>
+                <option value="active">Active only</option>
+                <option value="inactive">Inactive only</option>
+              </select>
+            </label>
+
+            <label className="block text-sm font-bold text-blue-50">
+              Minimum reports
+              <input
+                className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none transition focus:border-[#f6d37a]"
+                min={0}
+                onChange={(event) =>
+                  props.onAdminMinReportsChange(Number(event.target.value) || 0)
+                }
+                type="number"
+                value={props.adminMinReports}
+              />
+            </label>
+          </div>
+
+          <label className="mt-3 block text-sm font-bold text-blue-50">
+            Search
+            <input
+              className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none transition placeholder:text-blue-100/32 focus:border-[#f6d37a]"
+              onChange={(event) => props.onAdminSearchChange(event.target.value)}
+              placeholder="Find by question text"
+              value={props.adminSearch}
+            />
+          </label>
+
           <div className="mt-3 grid gap-2">
             {props.reportedQuestions.length === 0 ? (
-              <p className="text-sm text-blue-100/65">No reports loaded.</p>
+              <p className="text-sm text-blue-100/65">
+                No admin questions loaded yet.
+              </p>
             ) : (
               props.reportedQuestions.map((question) => (
                 <div
@@ -2883,6 +3136,42 @@ function QuestionFoundationPanel(props: {
                     {question.reportCount} | Active:{" "}
                     {question.active ? "yes" : "no"}
                   </p>
+                  <div className="mt-3 grid gap-2">
+                    {[
+                      ["A", question.answerA],
+                      ["B", question.answerB],
+                      ["C", question.answerC],
+                      ["D", question.answerD],
+                    ].map(([letter, answer]) => (
+                      <p
+                        className={`border px-3 py-2 text-xs font-bold ${
+                          letter === question.correctAnswer
+                            ? "border-[#6dff9f] bg-[#0b3523] text-[#c8ffd8]"
+                            : "border-[#244b91] bg-[#020712] text-blue-100/70"
+                        }`}
+                        key={letter}
+                      >
+                        <span className="mr-2 font-mono text-[#f6d37a]">
+                          {letter}
+                        </span>
+                        {answer}
+                      </p>
+                    ))}
+                  </div>
+                  <button
+                    className={`mt-3 w-full border px-3 py-2 text-sm font-black disabled:cursor-not-allowed disabled:opacity-55 ${
+                      question.active
+                        ? "border-[#ff5e5e]/55 bg-[#320f18] text-red-50"
+                        : "border-[#6dff9f]/65 bg-[#0b3523] text-[#c8ffd8]"
+                    }`}
+                    disabled={props.busy}
+                    onClick={() =>
+                      props.onToggleQuestionActive(question.id, !question.active)
+                    }
+                    type="button"
+                  >
+                    {question.active ? "Mark Inactive" : "Reactivate"}
+                  </button>
                   {question.reports?.length ? (
                     <div className="mt-2 grid gap-1">
                       {question.reports.map((report) => (

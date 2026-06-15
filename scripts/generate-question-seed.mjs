@@ -305,6 +305,399 @@ function sql(value) {
 const rows = [];
 const answerKeys = ["A", "B", "C", "D"];
 
+const categoryTermParts = {
+  "Buildings & Architecture": {
+    nouns: [
+      "arch",
+      "vault",
+      "lintel",
+      "atrium",
+      "facade",
+      "buttress",
+      "truss",
+      "colonnade",
+      "cantilever",
+      "clerestory",
+      "keystone",
+      "mezzanine",
+    ],
+    prefixes: [
+      "stone",
+      "timber",
+      "glass",
+      "load-bearing",
+      "ribbed",
+      "reinforced",
+      "modular",
+      "vaulted",
+      "cantilevered",
+      "prefabricated",
+      "buttressed",
+      "terraced",
+    ],
+  },
+  "Food & Drink": {
+    nouns: [
+      "fermentation",
+      "emulsion",
+      "stock",
+      "brine",
+      "reduction",
+      "marinade",
+      "pasteurization",
+      "caramelization",
+      "proofing",
+      "infusion",
+      "dehydration",
+      "tempering",
+    ],
+    prefixes: [
+      "sourdough",
+      "citrus",
+      "herbal",
+      "grain",
+      "steam",
+      "roasted",
+      "cultured",
+      "spiced",
+      "slow-cooked",
+      "preserved",
+      "aerated",
+      "clarified",
+    ],
+  },
+  Geography: {
+    nouns: [
+      "delta",
+      "plateau",
+      "isthmus",
+      "basin",
+      "peninsula",
+      "archipelago",
+      "fjord",
+      "escarpment",
+      "savanna",
+      "steppe",
+      "tundra",
+      "atoll",
+    ],
+    prefixes: [
+      "coastal",
+      "river",
+      "volcanic",
+      "desert",
+      "mountain",
+      "glacial",
+      "tropical",
+      "continental",
+      "arid",
+      "alluvial",
+      "subpolar",
+      "equatorial",
+    ],
+  },
+  "General Knowledge": {
+    nouns: [
+      "index",
+      "timeline",
+      "legend",
+      "scale",
+      "archive",
+      "classification",
+      "reference",
+      "sequence",
+      "catalogue",
+      "measurement",
+      "record",
+      "standard",
+    ],
+    prefixes: [
+      "alphabetical",
+      "chronological",
+      "comparative",
+      "decimal",
+      "metric",
+      "reference",
+      "coded",
+      "ordered",
+      "indexed",
+      "summary",
+      "standardized",
+      "classified",
+    ],
+  },
+  Landmarks: {
+    nouns: [
+      "tower",
+      "bridge",
+      "citadel",
+      "monument",
+      "amphitheater",
+      "aqueduct",
+      "fortress",
+      "observatory",
+      "stepwell",
+      "harbor",
+      "palace",
+      "temple complex",
+    ],
+    prefixes: [
+      "stone",
+      "ancient",
+      "coastal",
+      "iron",
+      "hilltop",
+      "ruined",
+      "carved",
+      "suspension",
+      "terraced",
+      "historic",
+      "ceremonial",
+      "restored",
+    ],
+  },
+  Languages: {
+    nouns: [
+      "alphabet",
+      "script",
+      "grammar",
+      "vowel",
+      "consonant",
+      "dialect",
+      "translation",
+      "loanword",
+      "pronunciation",
+      "suffix",
+      "prefix",
+      "word order",
+    ],
+    prefixes: [
+      "Latin",
+      "Cyrillic",
+      "syllabic",
+      "phonetic",
+      "bilingual",
+      "written",
+      "spoken",
+      "regional",
+      "tonal",
+      "inflected",
+      "compound",
+      "standard",
+    ],
+  },
+  Nature: {
+    nouns: [
+      "habitat",
+      "ecosystem",
+      "pollination",
+      "migration",
+      "camouflage",
+      "adaptation",
+      "biodiversity",
+      "decomposer",
+      "canopy",
+      "estuary",
+      "mangrove",
+      "symbiosis",
+    ],
+    prefixes: [
+      "forest",
+      "marine",
+      "desert",
+      "seasonal",
+      "nocturnal",
+      "wetland",
+      "coral",
+      "alpine",
+      "freshwater",
+      "coastal",
+      "tropical",
+      "temperate",
+    ],
+  },
+  "Oceans & Rivers": {
+    nouns: [
+      "current",
+      "trench",
+      "estuary",
+      "tributary",
+      "watershed",
+      "delta",
+      "reef",
+      "lagoon",
+      "basin",
+      "tide",
+      "strait",
+      "floodplain",
+    ],
+    prefixes: [
+      "ocean",
+      "river",
+      "tidal",
+      "deep-sea",
+      "coastal",
+      "freshwater",
+      "saltwater",
+      "submarine",
+      "warm",
+      "cold",
+      "seasonal",
+      "meandering",
+    ],
+  },
+  Science: {
+    nouns: [
+      "atom",
+      "molecule",
+      "catalyst",
+      "diffusion",
+      "density",
+      "reaction",
+      "wave",
+      "charge",
+      "compound",
+      "energy",
+      "pressure",
+      "solution",
+    ],
+    prefixes: [
+      "chemical",
+      "thermal",
+      "magnetic",
+      "electric",
+      "atomic",
+      "molecular",
+      "kinetic",
+      "elastic",
+      "acidic",
+      "alkaline",
+      "radio",
+      "optical",
+    ],
+  },
+  Space: {
+    nouns: [
+      "orbit",
+      "eclipse",
+      "moon",
+      "asteroid",
+      "comet",
+      "nebula",
+      "galaxy",
+      "telescope",
+      "spacecraft",
+      "meteor",
+      "planet",
+      "star",
+    ],
+    prefixes: [
+      "lunar",
+      "solar",
+      "orbital",
+      "rocky",
+      "icy",
+      "distant",
+      "spiral",
+      "interstellar",
+      "planetary",
+      "visible",
+      "outer",
+      "inner",
+    ],
+  },
+  Technology: {
+    nouns: [
+      "database",
+      "router",
+      "browser",
+      "encryption",
+      "algorithm",
+      "sensor",
+      "network",
+      "server",
+      "backup",
+      "protocol",
+      "interface",
+      "processor",
+    ],
+    prefixes: [
+      "digital",
+      "wireless",
+      "secure",
+      "cloud",
+      "mobile",
+      "open-source",
+      "encrypted",
+      "automated",
+      "remote",
+      "interactive",
+      "distributed",
+      "programmable",
+    ],
+  },
+  Transport: {
+    nouns: [
+      "railway",
+      "canal",
+      "runway",
+      "harbor",
+      "tunnel",
+      "terminal",
+      "freight",
+      "tramway",
+      "ferry",
+      "viaduct",
+      "subway",
+      "cable car",
+    ],
+    prefixes: [
+      "urban",
+      "electric",
+      "cargo",
+      "passenger",
+      "high-speed",
+      "underground",
+      "coastal",
+      "intercity",
+      "scheduled",
+      "elevated",
+      "magnetic",
+      "regional",
+    ],
+  },
+  "Weather & Climate": {
+    nouns: [
+      "front",
+      "cloud",
+      "monsoon",
+      "drought",
+      "humidity",
+      "pressure",
+      "forecast",
+      "cyclone",
+      "jet stream",
+      "dew point",
+      "rain shadow",
+      "trade wind",
+    ],
+    prefixes: [
+      "cold",
+      "warm",
+      "tropical",
+      "seasonal",
+      "humid",
+      "dry",
+      "low-pressure",
+      "high-pressure",
+      "polar",
+      "temperate",
+      "storm",
+      "coastal",
+    ],
+  },
+};
+
 function rotateAnswers(correctAnswer, wrongAnswers, targetCorrectKey) {
   const answers = {
     A: wrongAnswers[0],
@@ -325,6 +718,42 @@ function rotateAnswers(correctAnswer, wrongAnswers, targetCorrectKey) {
     answer_c: answers.C,
     answer_d: answers.D,
     correct_answer: targetCorrectKey,
+  };
+}
+
+function generatedQuestion(level, category, index) {
+  const parts = categoryTermParts[category];
+  const prefix = parts.prefixes[(level + index) % parts.prefixes.length];
+  const noun = parts.nouns[(level * 3 + index) % parts.nouns.length];
+  const term = `${prefix} ${noun}`;
+  const otherCategories = categories.filter((entry) => entry !== category);
+  const distractors = [
+    otherCategories[(level + index * 2) % otherCategories.length],
+    otherCategories[(level * 2 + index * 3 + 3) % otherCategories.length],
+    otherCategories[(level * 3 + index * 5 + 7) % otherCategories.length],
+  ];
+
+  const promptTemplates = [
+    (value) => `Which quiz category best fits the term "${value}"?`,
+    (value) =>
+      `The term "${value}" belongs most directly to which quiz category?`,
+    (value) =>
+      `A quiz clue about "${value}" would most likely belong to which category?`,
+    (value) => `Which topic would most likely use the term "${value}"?`,
+    (value) =>
+      `If "${value}" appeared in a quiz clue, which category would it suggest?`,
+    (value) =>
+      `Which category is the strongest match for the term "${value}"?`,
+  ];
+  const baseQuestionText = promptTemplates[index % promptTemplates.length](term);
+
+  return {
+    answer: category,
+    category,
+    distractors: [...new Set(distractors)].length === 3
+      ? distractors
+      : otherCategories.slice(0, 3),
+    questionText: baseQuestionText,
   };
 }
 
@@ -359,10 +788,42 @@ for (const [levelIndex, facts] of levelFacts.entries()) {
       report_count: 0,
     });
   }
+
+  for (let index = 0; index < 80; index += 1) {
+    const category = categories[(levelIndex * 5 + index) % categories.length];
+    const generated = generatedQuestion(level, category, index);
+    const targetCorrectKey = answerKeys[rows.length % answerKeys.length];
+    const rotated = rotateAnswers(
+      generated.answer,
+      generated.distractors,
+      targetCorrectKey,
+    );
+    let generatedQuestionText = generated.questionText;
+    let duplicateAttempt = 1;
+    while (rows.some((row) => row.question_text === generatedQuestionText)) {
+      generatedQuestionText =
+        `${generated.questionText.replace(/\?$/, "")} for a level ${level} clue${duplicateAttempt > 1 ? `, set ${duplicateAttempt}` : ""}?`;
+      duplicateAttempt += 1;
+    }
+
+    rows.push({
+      active: true,
+      answer_a: rotated.answer_a,
+      answer_b: rotated.answer_b,
+      answer_c: rotated.answer_c,
+      answer_d: rotated.answer_d,
+      category: generated.category,
+      correct_answer: rotated.correct_answer,
+      level,
+      prize_amount: prize,
+      question_text: generatedQuestionText,
+      report_count: 0,
+    });
+  }
 }
 
-if (rows.length !== 240) {
-  throw new Error(`Expected 240 questions, got ${rows.length}.`);
+if (rows.length !== 1200) {
+  throw new Error(`Expected 1200 questions, got ${rows.length}.`);
 }
 
 export const starterQuestions = rows;
@@ -388,7 +849,7 @@ const values = rows
   .map((valueList) => `  (${valueList})`)
   .join(",\n");
 
-const output = `-- Final Answer Milestone 4 starter question seed.\n-- Generated by scripts/generate-question-seed.mjs.\n-- Inserts 20 active starter questions per level, 240 total.\n\ninsert into public.questions (\n  question_text,\n  answer_a,\n  answer_b,\n  answer_c,\n  answer_d,\n  correct_answer,\n  level,\n  prize_amount,\n  category,\n  active,\n  report_count\n)\nvalues\n${values}\non conflict (question_text) do update set\n  answer_a = excluded.answer_a,\n  answer_b = excluded.answer_b,\n  answer_c = excluded.answer_c,\n  answer_d = excluded.answer_d,\n  correct_answer = excluded.correct_answer,\n  level = excluded.level,\n  prize_amount = excluded.prize_amount,\n  category = excluded.category,\n  active = excluded.active;\n\nnotify pgrst, 'reload schema';\n`;
+const output = `-- Final Answer Milestone 10 full Hot Seat question seed.\n-- Generated by scripts/generate-question-seed.mjs.\n-- Inserts 100 active questions per level, 1,200 total.\n\ninsert into public.questions (\n  question_text,\n  answer_a,\n  answer_b,\n  answer_c,\n  answer_d,\n  correct_answer,\n  level,\n  prize_amount,\n  category,\n  active,\n  report_count\n)\nvalues\n${values}\non conflict (question_text) do update set\n  answer_a = excluded.answer_a,\n  answer_b = excluded.answer_b,\n  answer_c = excluded.answer_c,\n  answer_d = excluded.answer_d,\n  correct_answer = excluded.correct_answer,\n  level = excluded.level,\n  prize_amount = excluded.prize_amount,\n  category = excluded.category,\n  active = excluded.active;\n\nnotify pgrst, 'reload schema';\n`;
 
 writeFileSync(
   join(process.cwd(), "supabase", "final-answer-question-seed.sql"),
