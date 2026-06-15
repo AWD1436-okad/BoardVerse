@@ -268,3 +268,61 @@ Known limits:
 - This milestone does not start hot-seat gameplay.
 - This milestone does not add lifelines.
 - The 240-question starter set is for proving the system and should be reviewed before the full 1,200-question import.
+
+## 2026-06-15 - Milestone 5 Realtime Game State
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed after moving realtime refresh calls out of direct effect state updates.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Database actions:
+- Added and applied `supabase/final-answer-game-state-schema.sql`.
+- Added `rooms.membership_locked_at`.
+- Replaced the old room status constraint with `waiting`, `starting`, `fastest_finger`, `hot_seat`, and `completed`.
+- Converted existing `in_game` rows to `fastest_finger` before applying the new constraint.
+- Added `game_states` for server-recorded gameplay state.
+- Added `room_events` for Supabase Realtime notifications.
+- Added `room_events` to the `supabase_realtime` publication.
+- Requested a PostgREST schema reload.
+
+Database verification:
+- `game_states` exists and has RLS enabled.
+- `room_events` exists and has RLS enabled.
+- `room_events` is in the Supabase Realtime publication.
+- `anon` can select `room_events` for realtime subscriptions.
+- `service_role` can read and write `game_states` and `room_events`.
+
+Production API tests at `https://playsgrid.org`:
+- Created a 2-player room.
+- Second logged-in account joined by room code.
+- Start before all players were ready was blocked with `409 not_all_ready`.
+- Both players set Ready.
+- Host started the game successfully.
+- Room status moved to `fastest_finger`.
+- A `game_states` record was created.
+- `join_order` contained both active players.
+- `eligible_account_ids` contained both active players.
+- `hot_seat_account_id` stayed empty, as expected for this foundation milestone.
+- Player leaving after start was marked as `leftDuringGame`.
+- That player was blocked from rejoining the same in-progress game with `409 game_already_started`.
+- Host transfer before start still worked.
+- A player who left before start could rejoin by code.
+
+Production event verification:
+- The test room recorded `player_joined`, `ready_changed`, `room_status_changed`, `game_started`, and `player_left` events.
+- Event records matched the room actions performed during the test.
+
+Production browser tests at `https://playsgrid.org`:
+- Room lobby showed `Realtime subscribed`.
+- A second player joined through the production API and appeared in the browser lobby without pressing Refresh.
+- Temporary game-state debug information appeared on desktop.
+- Host Ready button worked.
+- Browser console errors: none found.
+- Mobile viewport check at 390 x 844 had no horizontal overflow.
+
+Known limits:
+- Fastest Finger First questions and ordering gameplay are intentionally not built yet.
+- Hot-seat gameplay and lifelines are intentionally not built yet.
+- Start Game uses sequential server operations, not one database transaction; this should be hardened before a larger launch.

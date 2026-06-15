@@ -13,7 +13,7 @@ The previous PlayGrid board-game product is retired and can be replaced.
 - Hosting: Vercel.
 - Vercel project currently linked as `boardverse`.
 - GitHub remote: `https://github.com/AWD1436-okad/BoardVerse.git`.
-- Current public app: Final Answer through Milestone 4 question database and reporting foundation.
+- Current public app: Final Answer through Milestone 5 realtime game-state foundation.
 
 ## How To Run Locally
 
@@ -78,6 +78,20 @@ Tables:
 Admin support:
 - `accounts.is_admin` controls access to admin-only question report routes.
 
+Milestone 5 realtime game-state tables are defined in:
+- `supabase/final-answer-game-state-schema.sql`
+
+Tables and fields:
+- `game_states`: one server-recorded state record per room, including current room status, host account id, join order, completed-turn account ids, eligible account ids, and future hot-seat account id.
+- `room_events`: append-only room event notifications used by Supabase Realtime so browsers can refresh room state without manual reloads.
+
+Realtime behavior:
+- Server API routes make the real room/game-state changes.
+- Server API routes write a `room_events` row after joins, leaves, ready changes, host changes, status changes, and game starts.
+- Browsers subscribe to `room_events` through Supabase Realtime using the publishable key.
+- Browsers refresh room data through the existing server API after an event arrives.
+- A 30-second polling fallback remains in place.
+
 Plain-English Supabase setup:
 1. Open Supabase and create a project, or open the existing project you want to use.
 2. Go to SQL Editor.
@@ -102,6 +116,13 @@ Question setup:
 4. As that admin account, call the protected seed route or use the included seed SQL to insert starter questions.
 5. Confirm there are 240 active questions, 20 at each level.
 
+Realtime game-state setup:
+1. Run `supabase/final-answer-game-state-schema.sql`.
+2. Confirm `game_states` and `room_events` exist.
+3. Confirm `room_events` is included in the `supabase_realtime` publication.
+4. Confirm `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are configured in Vercel so the browser can subscribe to room events.
+5. Redeploy the Vercel production app.
+
 Important:
 - Do not paste Supabase keys into chat.
 - Do not put Supabase keys into code.
@@ -125,6 +146,9 @@ Standard production flow:
 - Milestone 2 account code is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 3 private rooms are implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 4 question database and reporting foundation is implemented, deployed, connected to Supabase, seeded, and production-verified.
-- No chat, realtime game state, Fastest Finger gameplay, hot-seat gameplay, lifelines, or gameplay stats updates exist yet.
-- Starting a room only moves the room to `in_game`; Fastest Finger First and hot-seat gameplay are pending.
+- Milestone 5 realtime game-state foundation is implemented, deployed, connected to Supabase, and production-verified.
+- No chat, Fastest Finger gameplay, hot-seat gameplay, lifelines, or gameplay stats updates exist yet.
+- Starting a room now creates a `game_states` record and moves the room to `fastest_finger`; the actual Fastest Finger UI and question flow are pending.
 - Full 1,200-question generation/import process still needs implementation and review.
+- The temporary game-state debug panel should be removed or hidden before final launch.
+- Start Game should eventually become a single Postgres transaction/function to reduce partial-update risk.

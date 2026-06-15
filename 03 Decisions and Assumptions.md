@@ -30,7 +30,10 @@
 - Lock a username for 10 minutes after 5 failed login attempts.
 - Store private rooms in Supabase `rooms` and `room_players` tables.
 - Keep room creation, joining, ready changes, leaving, and start checks behind server API routes so room rules are enforced consistently.
-- Use simple room polling for the lobby foundation; realtime updates can be added when game state becomes richer.
+- Use Supabase Realtime for room/game-state synchronization, with a 30-second polling fallback.
+- Store realtime notifications in `room_events`; browser clients subscribe to event inserts and then refresh authoritative room state through the server API.
+- Keep direct `game_states` reads server-side for now. The browser receives game-state data through room API responses, not through direct table access.
+- Keep Start Game server-owned: validate room fullness and ready state, lock membership, create game state, and move the room to `fastest_finger`.
 - Keep chat out of Milestone 3 to avoid adding moderation and safety scope before the lobby foundation is stable.
 - Store questions in Supabase `questions` with a separate `question_reports` table.
 - Keep public question selection behind server routes and exclude `correct_answer` from public random-question responses.
@@ -44,5 +47,6 @@
 - Large AI-generated question set needs quality review to avoid wrong, ambiguous, political, person-focused, religious, or overly obscure questions.
 - 4-digit PIN accounts are simple for family use but weaker than full passwords, so rate limiting and careful storage matter.
 - The Vercel project name is still `boardverse`; this is not public-facing but may be renamed later for clarity.
-- Room lobby updates currently poll. This is acceptable for Milestone 3, but faster game screens should use server-backed realtime or tighter polling.
+- The current Start Game flow performs several server operations in sequence rather than one database transaction. It is acceptable for the private MVP foundation but should be hardened with a Postgres function before heavier gameplay or larger groups.
+- Realtime room events reveal only event metadata to subscribed browser clients. This is acceptable for the private MVP, but access policies should be reviewed again before broader public use.
 - Starter questions are suitable for system testing but still need owner review before heavy family use.

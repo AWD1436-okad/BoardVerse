@@ -142,3 +142,27 @@ What is still not built:
 
 Next milestone:
 - Milestone 5 or 6 should connect the existing rooms to game state and Fastest Finger First. The safest next step is to design the server-recorded game state before adding the timed Fastest Finger UI.
+
+## 2026-06-15 - Milestone 5 Realtime Game State Completed
+
+Milestone 5 has added the realtime game-state foundation that future gameplay will use.
+
+What works now:
+- Room statuses support `waiting`, `starting`, `fastest_finger`, `hot_seat`, and `completed`.
+- Room lobbies subscribe to Supabase Realtime events so players see joins, leaves, ready changes, host changes, status changes, and game-start events without manually refreshing.
+- A 30-second polling fallback remains in place.
+- Starting a room now validates the room is full and everyone is ready, locks membership, creates a `game_states` record, and moves the room into `fastest_finger`.
+- The game-state record tracks room id, current status, join order, host account id, completed-turn account ids, eligible account ids, and a future hot-seat account id.
+- Leaving before start still allows rejoin by room code.
+- Leaving after start is marked as leaving during the game and rejoin is blocked for that same game.
+- Host transfer still works before game start.
+- The room lobby includes a temporary debug panel for logged-in users.
+
+What is still not built:
+- Fastest Finger questions and 30-second ordering UI are not built yet.
+- Hot-seat gameplay is not built yet.
+- Lifelines are not built yet.
+- Results, ranking, and gameplay stat updates are not built yet.
+
+Next milestone:
+- Milestone 6: Fastest Finger First.

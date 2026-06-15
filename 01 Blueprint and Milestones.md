@@ -98,12 +98,20 @@ Implementation note:
 - Question reports save a reason and update `report_count`.
 - Admin-only report listing shows reported questions and report counts.
 
-### Milestone 5 - Realtime Game State
+### Milestone 5 - Realtime Game State - Completed 2026-06-15
 
 - Start games only when room rules are satisfied.
 - Server-recorded game state.
 - Leave/disconnect handling.
 - Prevent players from rejoining the same in-progress game after leaving.
+
+Implementation note:
+- Room statuses now support `waiting`, `starting`, `fastest_finger`, `hot_seat`, and `completed`.
+- Start Game validates that the room is full and everyone is ready, locks membership, writes a `game_states` record, then moves the room from `waiting` to `starting` to `fastest_finger`.
+- Realtime lobby sync uses a server-written `room_events` table published through Supabase Realtime. Browser clients subscribe to room events and refresh the room through the existing server API.
+- A 30-second polling fallback remains as a backup if realtime is temporarily unavailable.
+- A temporary logged-in debug panel shows room code, room status, game-state id, host, player count, eligible count, and realtime subscription status.
+- Fastest Finger questions and gameplay are intentionally not built until Milestone 6.
 
 ### Milestone 6 - Fastest Finger First
 
