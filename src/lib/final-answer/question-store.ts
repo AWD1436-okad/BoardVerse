@@ -384,15 +384,26 @@ function adminQuestion(
 export async function getQuestionAdminSummary(
   supabase: SupabaseClient,
 ): Promise<AdminQuestionSummary> {
-  const { data, error } = await supabase
-    .from("questions")
-    .select("level, prize_amount, category, active, correct_answer, report_count");
+  const rows: QuestionRow[] = [];
+  const pageSize = 1000;
 
-  if (error) {
-    throw error;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("questions")
+      .select("level, prize_amount, category, active, correct_answer, report_count")
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    rows.push(...((data ?? []) as QuestionRow[]));
+
+    if (!data || data.length < pageSize) {
+      break;
+    }
   }
 
-  const rows = (data ?? []) as QuestionRow[];
   const answerBalance = { A: 0, B: 0, C: 0, D: 0 };
   const levelCounts = questionPrizes.map((prizeAmount, index) => ({
     activeCount: 0,

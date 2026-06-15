@@ -570,6 +570,8 @@ Implementation verification:
 - Admin filters support level, category, active/inactive/all, minimum report count, and search.
 - Admin can mark questions inactive and reactivate them through server routes.
 - Question audit verifies answer completeness, prize amount mapping, correct-answer validity, duplicates, and banned-topic terms in the seed data.
+- Production API testing found that the admin summary initially returned only 1,000 rows because Supabase paginates selects by default. The summary function now paginates through all question rows before calculating totals and balance.
+- One build retry hit a Windows `.next` file-lock from leftover Playwright helper processes. The generated `.next` folder was path-verified, cleared, and `npx.cmd next build` passed afterward.
 
 Production verification:
 - To be completed after the deployment reaches Vercel Ready and the 1,200-question seed is applied through the protected admin seed route.
