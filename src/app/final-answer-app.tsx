@@ -59,6 +59,7 @@ type GameState = {
   completedTurnAccountIds: string[];
   currentRoomStatus: Exclude<RoomStatus, "waiting">;
   currentFastestFingerRoundId: string | null;
+  currentHotSeatTurnId: string | null;
   eligibleAccountIds: string[];
   fastestFingerWinnerAccountId: string | null;
   hostAccountId: string;
@@ -81,6 +82,7 @@ type Question = {
 };
 
 type FastestFingerItemKey = "item_1" | "item_2" | "item_3" | "item_4";
+type HotSeatAnswerKey = "A" | "B" | "C" | "D";
 
 type FastestFingerState = {
   endsAt: string;
@@ -106,6 +108,45 @@ type FastestFingerState = {
   } | null;
 };
 
+type HotSeatState = {
+  correctAnswer: HotSeatAnswerKey | null;
+  currentLevel: number;
+  currentPrize: number;
+  finalAnswer: HotSeatAnswerKey | null;
+  finalWinnings: number | null;
+  hotSeatPlayer: {
+    accountId: string;
+    displayName: string;
+  };
+  isCorrect: boolean | null;
+  ladder: Array<{
+    amount: number;
+    isCurrent: boolean;
+    isSafetyNet: boolean;
+    level: number;
+  }>;
+  levelsCompleted: number;
+  question: {
+    answerA: string;
+    answerB: string;
+    answerC: string;
+    answerD: string;
+    category: string;
+    id: string;
+    level: number;
+    prizeAmount: number;
+    questionText: string;
+  };
+  questionsCorrect: number;
+  selectedAnswer: HotSeatAnswerKey | null;
+  status:
+    | "awaiting_answer"
+    | "revealed_correct"
+    | "revealed_wrong"
+    | "turn_complete";
+  turnId: string;
+};
+
 type ReportedQuestion = Question & {
   active: boolean;
   correctAnswer: string;
@@ -121,6 +162,7 @@ type ApiResponse = {
   missing?: string[];
   ok: boolean;
   fastestFinger?: Omit<FastestFingerState, "loadedAt"> | null;
+  hotSeat?: HotSeatState | null;
   prizeAmount?: number;
   question?: Question | null;
   questions?: ReportedQuestion[];
@@ -193,6 +235,10 @@ function formatStat(key: keyof AccountStats, value: number) {
   return value.toLocaleString();
 }
 
+function formatPrize(value: number) {
+  return `$${value.toLocaleString()}`;
+}
+
 function validPin(pin: string) {
   return /^\d{4}$/.test(pin);
 }
@@ -216,6 +262,11 @@ export function FinalAnswerApp() {
   const [fastestFingerOrder, setFastestFingerOrder] = useState<
     FastestFingerItemKey[]
   >(["item_1", "item_2", "item_3", "item_4"]);
+  const [hotSeat, setHotSeat] = useState<HotSeatState | null>(null);
+  const [selectedHotSeatAnswer, setSelectedHotSeatAnswer] =
+    useState<HotSeatAnswerKey | null>(null);
+  const [confirmingHotSeatAnswer, setConfirmingHotSeatAnswer] = useState(false);
+  const [hotSeatRevealPending, setHotSeatRevealPending] = useState(false);
   const [timerNow, setTimerTick] = useState(Date.now());
   const [question, setQuestion] = useState<Question | null>(null);
   const [reportedQuestions, setReportedQuestions] = useState<ReportedQuestion[]>(
@@ -297,11 +348,16 @@ export function FinalAnswerApp() {
       return;
     }
 
-    if (room.status !== "fastest_finger" && room.status !== "hot_seat") {
+    if (room.status === "fastest_finger") {
+      loadFastestFingerState(false);
       return;
     }
 
-    loadFastestFingerState(false);
+    if (room.status === "hot_seat") {
+      loadHotSeatState(false);
+      return;
+    }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id, room?.status, account?.id]);
 
@@ -348,8 +404,10 @@ export function FinalAnswerApp() {
           window.setTimeout(() => {
             refreshQueued = false;
             refreshRoom(false);
-            if (room.status === "fastest_finger" || room.status === "hot_seat") {
+            if (room.status === "fastest_finger") {
               loadFastestFingerState(false);
+            } else if (room.status === "hot_seat") {
+              loadHotSeatState(false);
             }
           }, 150);
         },
@@ -488,6 +546,8 @@ export function FinalAnswerApp() {
       await fetch("/api/account/logout", { method: "POST" });
       setAccount(null);
       setRoom(null);
+      setFastestFinger(null);
+      setHotSeat(null);
       setDisplayNameDraft("");
       setLoginPin("");
       setSignupPin("");
@@ -648,6 +708,8 @@ export function FinalAnswerApp() {
       }
 
       setRoom(null);
+      setFastestFinger(null);
+      setHotSeat(null);
       setMessage(
         room.status !== "waiting"
           ? "You left after the game started, so you cannot rejoin that game."
@@ -764,6 +826,138 @@ export function FinalAnswerApp() {
       );
     } catch {
       setMessage("Could not submit Fastest Finger. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function setLoadedHotSeat(state: HotSeatState | null | undefined) {
+    if (!state) {
+      setHotSeat(null);
+      setSelectedHotSeatAnswer(null);
+      setConfirmingHotSeatAnswer(false);
+      return;
+    }
+
+    setHotSeat(state);
+    setSelectedHotSeatAnswer(state.selectedAnswer ?? state.finalAnswer);
+    setConfirmingHotSeatAnswer(false);
+  }
+
+  async function loadHotSeatState(showMessage = false) {
+    if (!room?.id) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/hot-seat`);
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !data.hotSeat) {
+        if (showMessage) {
+          showApiError(data, "Could not load Hot Seat.");
+        }
+        return;
+      }
+
+      setLoadedHotSeat(data.hotSeat);
+
+      if (showMessage) {
+        setMessage("Hot Seat refreshed.");
+      }
+    } catch {
+      if (showMessage) {
+        setMessage("Could not load Hot Seat. Try again.");
+      }
+    }
+  }
+
+  async function submitHotSeatAnswer(answer: HotSeatAnswerKey) {
+    if (!room?.id) {
+      return;
+    }
+
+    setBusy(true);
+    setHotSeatRevealPending(true);
+    setConfirmingHotSeatAnswer(false);
+    setMessage("Final answer locked...");
+    const startedAt = Date.now();
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/hot-seat`, {
+        body: JSON.stringify({ action: "answer", answer }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+      const remainingDelay = Math.max(0, 2400 - (Date.now() - startedAt));
+
+      await new Promise((resolve) => window.setTimeout(resolve, remainingDelay));
+
+      if (data.hotSeat) {
+        setLoadedHotSeat(data.hotSeat);
+      }
+
+      if (!response.ok || !data.hotSeat) {
+        showApiError(data, "Could not lock final answer.");
+        return;
+      }
+
+      setMessage(
+        data.hotSeat.isCorrect
+          ? "Correct answer."
+          : `Turn finished with $${(data.hotSeat.finalWinnings ?? 0).toLocaleString()}.`,
+      );
+    } catch {
+      setMessage("Could not lock final answer. Try again.");
+    } finally {
+      setHotSeatRevealPending(false);
+      setBusy(false);
+    }
+  }
+
+  async function continueHotSeat() {
+    if (!room?.id) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/hot-seat`, {
+        body: JSON.stringify({ action: "continue" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (data.room) {
+        setRoom(data.room);
+      }
+
+      if (data.hotSeat) {
+        setLoadedHotSeat(data.hotSeat);
+      } else {
+        setHotSeat(null);
+        setSelectedHotSeatAnswer(null);
+      }
+
+      if (!response.ok) {
+        showApiError(data, "Could not continue Hot Seat.");
+        return;
+      }
+
+      if (data.room?.status === "fastest_finger") {
+        setFastestFinger(null);
+        setMessage("Turn complete. Next Fastest Finger round is ready.");
+      } else if (data.room?.status === "completed") {
+        setMessage("Game complete.");
+      } else if (data.hotSeat) {
+        setMessage(`Level ${data.hotSeat.currentLevel} question loaded.`);
+      }
+    } catch {
+      setMessage("Could not continue Hot Seat. Try again.");
     } finally {
       setBusy(false);
     }
@@ -987,16 +1181,35 @@ export function FinalAnswerApp() {
                 currentPlayer={currentPlayer}
                 fastestFinger={fastestFinger}
                 fastestFingerOrder={fastestFingerOrder}
+                confirmingHotSeatAnswer={confirmingHotSeatAnswer}
+                hotSeat={hotSeat}
+                hotSeatRevealPending={hotSeatRevealPending}
                 isHost={isHost}
+                onCancelHotSeatAnswer={() => {
+                  setConfirmingHotSeatAnswer(false);
+                  setSelectedHotSeatAnswer(null);
+                }}
+                onConfirmHotSeatAnswer={() => {
+                  if (selectedHotSeatAnswer) {
+                    submitHotSeatAnswer(selectedHotSeatAnswer);
+                  }
+                }}
+                onContinueHotSeat={continueHotSeat}
                 onLeaveRoom={leaveRoom}
+                onRefreshHotSeat={() => loadHotSeatState(true)}
                 onRefreshFastestFinger={() => loadFastestFingerState(true)}
                 onRefreshRoom={() => refreshRoom(true)}
+                onSelectHotSeatAnswer={(answer) => {
+                  setSelectedHotSeatAnswer(answer);
+                  setConfirmingHotSeatAnswer(true);
+                }}
                 onStartRoom={startRoom}
                 onSubmitFastestFinger={submitFastestFingerOrder}
                 onUpdateFastestFingerOrder={setFastestFingerOrder}
                 onUpdateReady={updateReady}
                 realtimeStatus={room ? realtimeStatus : "Realtime idle"}
                 room={room}
+                selectedHotSeatAnswer={selectedHotSeatAnswer}
                 timerNow={timerNow}
               />
             ) : activePanel === "create-room" || activePanel === "join-room" ? (
@@ -1185,19 +1398,28 @@ function RoomActionPanel(props: {
 function RoomLobby(props: {
   account: Account | null;
   busy: boolean;
+  confirmingHotSeatAnswer: boolean;
   currentPlayer: RoomPlayer | undefined;
   fastestFinger: FastestFingerState | null;
   fastestFingerOrder: FastestFingerItemKey[];
+  hotSeat: HotSeatState | null;
+  hotSeatRevealPending: boolean;
   isHost: boolean;
+  onCancelHotSeatAnswer: () => void;
+  onConfirmHotSeatAnswer: () => void;
+  onContinueHotSeat: () => void;
   onLeaveRoom: () => void;
+  onRefreshHotSeat: () => void;
   onRefreshFastestFinger: () => void;
   onRefreshRoom: () => void;
+  onSelectHotSeatAnswer: (answer: HotSeatAnswerKey) => void;
   onStartRoom: () => void;
   onSubmitFastestFinger: (order: FastestFingerItemKey[]) => void;
   onUpdateFastestFingerOrder: (order: FastestFingerItemKey[]) => void;
   onUpdateReady: (isReady: boolean) => void;
   realtimeStatus: string;
   room: Room;
+  selectedHotSeatAnswer: HotSeatAnswerKey | null;
   timerNow: number;
 }) {
   const activePlayers = props.room.players.filter((player) => !player.leftAt);
@@ -1287,26 +1509,19 @@ function RoomLobby(props: {
       )}
 
       {props.room.status === "hot_seat" && (
-        <div className="border border-[#f6d37a]/45 bg-[#061733]/92 p-4 text-sm leading-6 text-blue-100">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
-            Fastest Finger result
-          </p>
-          <h3 className="mt-2 text-2xl font-black text-white">
-            Winner: {props.fastestFinger?.winner?.displayName ?? "Loading..."}
-          </h3>
-          <p className="mt-2">
-            Hot Seat gameplay starts in Milestone 7. This room has correctly
-            moved from Fastest Finger to hot seat.
-          </p>
-          <button
-            className="mt-3 border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
-            disabled={props.busy}
-            onClick={props.onRefreshFastestFinger}
-            type="button"
-          >
-            Refresh Result
-          </button>
-        </div>
+        <HotSeatPanel
+          account={props.account}
+          busy={props.busy}
+          confirmingAnswer={props.confirmingHotSeatAnswer}
+          hotSeat={props.hotSeat}
+          onCancelAnswer={props.onCancelHotSeatAnswer}
+          onConfirmAnswer={props.onConfirmHotSeatAnswer}
+          onContinue={props.onContinueHotSeat}
+          onRefresh={props.onRefreshHotSeat}
+          onSelectAnswer={props.onSelectHotSeatAnswer}
+          revealPending={props.hotSeatRevealPending}
+          selectedAnswer={props.selectedHotSeatAnswer}
+        />
       )}
 
       <GameStateDebugPanel
@@ -1565,6 +1780,244 @@ function FastestFingerPanel(props: {
         >
           Refresh
         </button>
+      </div>
+    </div>
+  );
+}
+
+function HotSeatPanel(props: {
+  account: Account | null;
+  busy: boolean;
+  confirmingAnswer: boolean;
+  hotSeat: HotSeatState | null;
+  onCancelAnswer: () => void;
+  onConfirmAnswer: () => void;
+  onContinue: () => void;
+  onRefresh: () => void;
+  onSelectAnswer: (answer: HotSeatAnswerKey) => void;
+  revealPending: boolean;
+  selectedAnswer: HotSeatAnswerKey | null;
+}) {
+  if (!props.hotSeat) {
+    return (
+      <div className="border border-[#f6d37a]/35 bg-[#061733]/92 p-4">
+        <p className="text-sm font-bold text-blue-100">Loading Hot Seat...</p>
+        <button
+          className="mt-3 border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+          disabled={props.busy}
+          onClick={props.onRefresh}
+          type="button"
+        >
+          Refresh Hot Seat
+        </button>
+      </div>
+    );
+  }
+
+  const isHotSeatPlayer =
+    props.account?.id === props.hotSeat.hotSeatPlayer.accountId;
+  const locked = props.busy || props.revealPending || props.hotSeat.status !== "awaiting_answer";
+  const answerRows: Array<[HotSeatAnswerKey, string]> = [
+    ["A", props.hotSeat.question.answerA],
+    ["B", props.hotSeat.question.answerB],
+    ["C", props.hotSeat.question.answerC],
+    ["D", props.hotSeat.question.answerD],
+  ];
+
+  function answerClass(answer: HotSeatAnswerKey) {
+    const revealed =
+      props.hotSeat?.status === "revealed_correct" ||
+      props.hotSeat?.status === "revealed_wrong" ||
+      props.hotSeat?.status === "turn_complete";
+
+    if (revealed && props.hotSeat?.correctAnswer === answer) {
+      return "border-emerald-300 bg-emerald-400 text-[#04120c]";
+    }
+
+    if (
+      revealed &&
+      props.hotSeat?.finalAnswer === answer &&
+      props.hotSeat?.isCorrect === false
+    ) {
+      return "border-[#ff5e5e] bg-[#7a1620] text-red-50";
+    }
+
+    if (!revealed && props.selectedAnswer === answer) {
+      return "border-[#ff9f2f] bg-[#ff9f2f] text-[#071225]";
+    }
+
+    return "border-[#244b91] bg-[#071a3d] text-blue-50 hover:border-[#f6d37a]/80";
+  }
+
+  return (
+    <div className="grid gap-4 border border-[#f6d37a]/45 bg-[#030914] p-4 shadow-[0_0_50px_rgba(246,211,122,0.14)]">
+      <div className="border border-[#244b91] bg-[#061733] p-4">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+          Hot Seat
+        </p>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 className="text-3xl font-black text-white">
+              {props.hotSeat.hotSeatPlayer.displayName}
+            </h3>
+            <p className="mt-1 text-sm font-bold text-blue-100/70">
+              Level {props.hotSeat.currentLevel} for{" "}
+              {formatPrize(props.hotSeat.currentPrize)}
+            </p>
+          </div>
+          <span className="border border-[#f6d37a]/55 px-3 py-2 font-mono text-sm font-black text-[#f6d37a]">
+            {props.hotSeat.status.replace("_", " ")}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1fr_170px]">
+        <section className="border border-[#244b91] bg-[#061a3e] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-[#f6d37a]">
+              {props.hotSeat.question.category}
+            </span>
+            <span className="font-mono text-xs font-black text-blue-100/70">
+              {formatPrize(props.hotSeat.question.prizeAmount)}
+            </span>
+          </div>
+          <p className="mt-4 text-xl font-black leading-8 text-white">
+            {props.hotSeat.question.questionText}
+          </p>
+
+          <div className="mt-5 grid gap-2">
+            {answerRows.map(([answer, text]) => (
+              <button
+                className={`w-full border px-3 py-3 text-left font-black transition disabled:cursor-not-allowed ${answerClass(
+                  answer,
+                )}`}
+                disabled={locked || !isHotSeatPlayer}
+                key={answer}
+                onClick={() => props.onSelectAnswer(answer)}
+                type="button"
+              >
+                <span className="mr-3 font-mono">{answer}</span>
+                {text}
+              </button>
+            ))}
+          </div>
+
+          {!isHotSeatPlayer && props.hotSeat.status === "awaiting_answer" && (
+            <p className="mt-4 border border-[#244b91] bg-[#050f25] p-3 text-sm font-bold leading-6 text-blue-100/75">
+              Waiting for {props.hotSeat.hotSeatPlayer.displayName} to lock a
+              final answer.
+            </p>
+          )}
+
+          {props.confirmingAnswer &&
+            props.selectedAnswer &&
+            props.hotSeat.status === "awaiting_answer" && (
+              <div className="mt-4 border border-[#ff9f2f] bg-[#281406] p-4">
+                <p className="text-lg font-black text-white">
+                  Is that your final answer?
+                </p>
+                <p className="mt-1 font-mono text-sm font-black text-[#ffcb8c]">
+                  Selected answer {props.selectedAnswer}
+                </p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <button
+                    className="border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225]"
+                    disabled={props.busy}
+                    onClick={props.onConfirmAnswer}
+                    type="button"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    className="border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+                    disabled={props.busy}
+                    onClick={props.onCancelAnswer}
+                    type="button"
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+            )}
+
+          {props.revealPending && (
+            <div className="mt-4 border border-[#f6d37a]/55 bg-[#050f25] p-4">
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#f6d37a]">
+                Final answer locked...
+              </p>
+              <div className="mt-3 h-3 overflow-hidden border border-[#f6d37a]/40 bg-[#020712]">
+                <div className="timer-flare h-full w-full" />
+              </div>
+            </div>
+          )}
+
+          {props.hotSeat.status === "revealed_correct" && (
+            <div className="mt-4 border border-emerald-300 bg-[#062015] p-4">
+              <p className="text-xl font-black text-emerald-100">Correct</p>
+              <p className="mt-2 text-sm font-bold leading-6 text-emerald-50/80">
+                {formatPrize(props.hotSeat.currentPrize)} is secured for this
+                level. Continue to the next question.
+              </p>
+              <button
+                className="mt-4 w-full border border-emerald-300 bg-emerald-300 px-4 py-3 font-black text-[#071225]"
+                disabled={props.busy}
+                onClick={props.onContinue}
+                type="button"
+              >
+                Next Question
+              </button>
+            </div>
+          )}
+
+          {(props.hotSeat.status === "revealed_wrong" ||
+            props.hotSeat.status === "turn_complete") && (
+            <div className="mt-4 border border-[#ff5e5e]/70 bg-[#320f18] p-4">
+              <p className="text-xl font-black text-red-50">
+                {props.hotSeat.isCorrect ? "Top prize reached" : "Incorrect"}
+              </p>
+              <p className="mt-2 text-sm font-bold leading-6 text-red-50/84">
+                {props.hotSeat.hotSeatPlayer.displayName} finishes this turn
+                with {formatPrize(props.hotSeat.finalWinnings ?? 0)}.
+              </p>
+              {isHotSeatPlayer && (
+                <button
+                  className="mt-4 w-full border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225]"
+                  disabled={props.busy}
+                  onClick={props.onContinue}
+                  type="button"
+                >
+                  Continue
+                </button>
+              )}
+            </div>
+          )}
+        </section>
+
+        <aside className="border border-[#244b91] bg-[#050f25] p-3">
+          <p className="mb-3 text-center text-xs font-black uppercase tracking-[0.2em] text-[#f6d37a]">
+            Prize ladder
+          </p>
+          <ol className="grid gap-1">
+            {[...props.hotSeat.ladder].reverse().map((item) => (
+              <li
+                className={`border px-2 py-1.5 text-right font-mono text-xs font-black ${
+                  item.isCurrent
+                    ? "border-[#f6d37a] bg-[#f6d37a] text-[#071225]"
+                    : item.isSafetyNet
+                      ? "border-[#f6d37a]/60 bg-[#172a48] text-[#f6d37a]"
+                      : "border-[#1c3f7d] bg-[#071a3d] text-blue-100"
+                }`}
+                key={item.level}
+              >
+                {formatPrize(item.amount)}
+              </li>
+            ))}
+          </ol>
+          <div className="mt-3 border border-[#244b91] bg-[#071a3d] p-2 text-xs font-bold leading-5 text-blue-100/70">
+            Correct: {props.hotSeat.questionsCorrect}. Completed levels:{" "}
+            {props.hotSeat.levelsCompleted}.
+          </div>
+        </aside>
       </div>
     </div>
   );

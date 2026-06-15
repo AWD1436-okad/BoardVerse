@@ -13,6 +13,7 @@ export type GameState = {
   completedTurnAccountIds: string[];
   currentRoomStatus: Exclude<RoomStatus, "waiting">;
   currentFastestFingerRoundId: string | null;
+  currentHotSeatTurnId: string | null;
   eligibleAccountIds: string[];
   fastestFingerWinnerAccountId: string | null;
   hostAccountId: string;
@@ -59,6 +60,7 @@ type GameStateRow = {
   completed_turn_account_ids: string[];
   current_room_status: Exclude<RoomStatus, "waiting">;
   current_fastest_finger_round_id: string | null;
+  current_hot_seat_turn_id: string | null;
   eligible_account_ids: string[];
   fastest_finger_winner_account_id: string | null;
   host_account_id: string;
@@ -139,6 +141,7 @@ function toPublicGameState(row: GameStateRow | null): GameState | null {
     completedTurnAccountIds: row.completed_turn_account_ids,
     currentRoomStatus: row.current_room_status,
     currentFastestFingerRoundId: row.current_fastest_finger_round_id,
+    currentHotSeatTurnId: row.current_hot_seat_turn_id,
     eligibleAccountIds: row.eligible_account_ids,
     fastestFingerWinnerAccountId: row.fastest_finger_winner_account_id,
     hostAccountId: row.host_account_id,
@@ -219,7 +222,7 @@ async function fetchRoomById(supabase: SupabaseClient, roomId: string) {
   const { data: gameState, error: gameStateError } = await supabase
     .from("game_states")
     .select(
-      "id, room_id, current_room_status, current_fastest_finger_round_id, host_account_id, join_order, completed_turn_account_ids, eligible_account_ids, fastest_finger_winner_account_id, hot_seat_account_id",
+      "id, room_id, current_room_status, current_fastest_finger_round_id, current_hot_seat_turn_id, host_account_id, join_order, completed_turn_account_ids, eligible_account_ids, fastest_finger_winner_account_id, hot_seat_account_id",
     )
     .eq("room_id", room.id)
     .maybeSingle();
@@ -248,7 +251,10 @@ export async function emitRoomEvent(
       | "game_started"
       | "fastest_finger_round_started"
       | "fastest_finger_submitted"
-      | "fastest_finger_winner";
+      | "fastest_finger_winner"
+      | "hot_seat_question_loaded"
+      | "hot_seat_answer_locked"
+      | "hot_seat_turn_completed";
     payload?: Record<string, unknown>;
     roomId: string;
   },
@@ -588,6 +594,7 @@ export async function startRoom(
     {
       completed_turn_account_ids: [],
       current_fastest_finger_round_id: null,
+      current_hot_seat_turn_id: null,
       current_room_status: "starting",
       eligible_account_ids: joinOrder,
       fastest_finger_winner_account_id: null,
