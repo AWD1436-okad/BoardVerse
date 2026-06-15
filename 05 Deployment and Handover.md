@@ -13,7 +13,7 @@ The previous PlayGrid board-game product is retired and can be replaced.
 - Hosting: Vercel.
 - Vercel project currently linked as `boardverse`.
 - GitHub remote: `https://github.com/AWD1436-okad/BoardVerse.git`.
-- Current public app: Final Answer through Milestone 3 private rooms.
+- Current public app: Final Answer through Milestone 4 question database and reporting foundation.
 
 ## How To Run Locally
 
@@ -63,6 +63,21 @@ Tables:
 - `rooms`
 - `room_players`
 
+Milestone 4 question tables are defined in:
+- `supabase/final-answer-question-schema.sql`
+
+Starter question seed files:
+- `supabase/final-answer-question-seed.sql`
+- `src/lib/final-answer/starter-questions.json`
+- `scripts/generate-question-seed.mjs`
+
+Tables:
+- `questions`
+- `question_reports`
+
+Admin support:
+- `accounts.is_admin` controls access to admin-only question report routes.
+
 Plain-English Supabase setup:
 1. Open Supabase and create a project, or open the existing project you want to use.
 2. Go to SQL Editor.
@@ -79,6 +94,13 @@ Room setup:
 2. Run `supabase/final-answer-room-schema.sql`.
 3. Confirm `rooms` and `room_players` exist.
 4. Redeploy the Vercel production app if this schema was added after code deployment.
+
+Question setup:
+1. Run `supabase/final-answer-question-schema.sql`.
+2. Deploy the app.
+3. Make an owner/admin account by setting `accounts.is_admin` to `true` for the chosen username in Supabase.
+4. As that admin account, call the protected seed route or use the included seed SQL to insert starter questions.
+5. Confirm there are 240 active questions, 20 at each level.
 
 Important:
 - Do not paste Supabase keys into chat.
@@ -102,6 +124,7 @@ Standard production flow:
 - Final Answer Milestone 1 is implemented.
 - Milestone 2 account code is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 3 private rooms are implemented, deployed, connected to Supabase, and production-verified.
-- No chat, realtime game state, questions, reports, or gameplay stats updates exist yet.
+- Milestone 4 question database and reporting foundation is implemented, deployed, connected to Supabase, seeded, and production-verified.
+- No chat, realtime game state, Fastest Finger gameplay, hot-seat gameplay, lifelines, or gameplay stats updates exist yet.
 - Starting a room only moves the room to `in_game`; Fastest Finger First and hot-seat gameplay are pending.
 - Full 1,200-question generation/import process still needs implementation and review.

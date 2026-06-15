@@ -214,3 +214,57 @@ Known limits:
 - Chat is not part of Milestone 3.
 - Starting the room only changes status to `in_game`; Fastest Finger First starts in a later milestone.
 - Room lobby state is not automatically restored after a full browser reload; users can rejoin by room code while the room is still waiting.
+
+## 2026-06-15 - Milestone 4 Question Database and Reporting
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Database actions:
+- Applied `supabase/final-answer-question-schema.sql` to Supabase project `chhdhlmnlocxwgqdqfip`.
+- Added `questions` and `question_reports`.
+- Added `accounts.is_admin`.
+- Seeded starter questions through the protected admin seed route.
+
+Database verification:
+- Total questions: 240.
+- Active questions: 240.
+- Level 1, `$100`: 20 active questions.
+- Level 2, `$500`: 20 active questions.
+- Level 3, `$1,000`: 20 active questions.
+- Level 4, `$4,000`: 20 active questions.
+- Level 5, `$8,000`: 20 active questions.
+- Level 6, `$16,000`: 20 active questions.
+- Level 7, `$32,000`: 20 active questions.
+- Level 8, `$64,000`: 20 active questions.
+- Level 9, `$125,000`: 20 active questions.
+- Level 10, `$250,000`: 20 active questions.
+- Level 11, `$500,000`: 20 active questions.
+- Level 12, `$1,000,000`: 20 active questions.
+- RLS is enabled on `questions` and `question_reports`.
+
+Production API tests at `https://playsgrid.org`:
+- Admin-only starter seed route inserted 240 questions and returned 20 per level.
+- Random question selection by level works.
+- Random question responses do not include `correctAnswer`.
+- Inactive questions are skipped. Verification used a temporary inactive question and excluded all active level-1 questions; the API returned `404 question_not_found`, then the temporary row was removed.
+- Question report saves successfully.
+- Question report count increments.
+- Admin reported-question query returns reported questions and report counts.
+
+Production browser tests at `https://playsgrid.org`:
+- Public page loads with title `Final Answer | Private Quiz Game`.
+- Logged-in Question Bank Test panel appears.
+- Load Question button loads a question.
+- Report Question button saves a report.
+- Mobile viewport check at 390 x 844 has no horizontal overflow.
+- Browser console errors: none found.
+
+Known limits:
+- This milestone does not start Fastest Finger First.
+- This milestone does not start hot-seat gameplay.
+- This milestone does not add lifelines.
+- The 240-question starter set is for proving the system and should be reviewed before the full 1,200-question import.

@@ -82,13 +82,21 @@ Implementation note:
 - Room lobbies use simple polling for now; Supabase Realtime can replace or supplement this in the game-state milestone.
 - Starting a room currently changes the room status to `in_game`; Fastest Finger First and gameplay are intentionally not built until later milestones.
 
-### Milestone 4 - Question Database and Reporting
+### Milestone 4 - Question Database and Reporting - Completed 2026-06-15
 
 - Add question schema and seed/import path.
 - Add initial curated/generated question sample for testing.
 - Add report-question flow.
 - Add basic admin review placeholder or protected review screen.
 - Plan safe generation/import process for all 1,200 questions.
+
+Implementation note:
+- Added `questions` and `question_reports` tables with RLS enabled.
+- Added an `is_admin` account flag for protected admin review routes.
+- Seeded 240 starter questions: 20 questions for each of the 12 prize levels.
+- Public random question selection returns active questions only and does not expose the correct answer.
+- Question reports save a reason and update `report_count`.
+- Admin-only report listing shows reported questions and report counts.
 
 ### Milestone 5 - Realtime Game State
 

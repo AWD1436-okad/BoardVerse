@@ -115,3 +115,30 @@ What is still not built:
 
 Next milestone:
 - Milestone 4: question database and report-question foundation.
+
+## 2026-06-15 - Milestone 4 Question Database Completed
+
+Milestone 4 has added the question database and report-question foundation.
+
+What works now:
+- Supabase has `questions` and `question_reports` tables.
+- Accounts now support an `is_admin` flag for protected admin routes.
+- The starter database contains 240 active questions: 20 per level from level 1 through level 12.
+- Each question stores text, four answers, correct answer, level, prize amount, category, active status, report count, and creation date.
+- Random question selection by level works through `/api/questions/random`.
+- Random question responses do not expose the correct answer to the browser.
+- Inactive questions are skipped.
+- Logged-in users can report questions for Wrong answer, Ambiguous wording, Typo, or Other.
+- Reporting a question saves a report and increments the question report count.
+- Admin-only report review exists at `/api/admin/questions/reports`.
+- A small logged-in Question Bank Test panel exists so the question/report system can be tested before gameplay is built.
+
+What is still not built:
+- Fastest Finger First has not started.
+- Hot-seat gameplay has not started.
+- Lifelines have not started.
+- The full 1,200-question set has not been generated or reviewed yet.
+- Admin question editing is not built yet.
+
+Next milestone:
+- Milestone 5 or 6 should connect the existing rooms to game state and Fastest Finger First. The safest next step is to design the server-recorded game state before adding the timed Fastest Finger UI.

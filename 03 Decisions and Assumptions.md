@@ -32,6 +32,11 @@
 - Keep room creation, joining, ready changes, leaving, and start checks behind server API routes so room rules are enforced consistently.
 - Use simple room polling for the lobby foundation; realtime updates can be added when game state becomes richer.
 - Keep chat out of Milestone 3 to avoid adding moderation and safety scope before the lobby foundation is stable.
+- Store questions in Supabase `questions` with a separate `question_reports` table.
+- Keep public question selection behind server routes and exclude `correct_answer` from public random-question responses.
+- Use 240 generated starter questions first, not the full 1,200-question target, so the schema and report flow can be proven before scaling content.
+- Use an `is_admin` boolean on accounts for the first admin foundation.
+- Keep the admin seed route protected by account admin status.
 
 ## Open Risks
 
@@ -40,3 +45,4 @@
 - 4-digit PIN accounts are simple for family use but weaker than full passwords, so rate limiting and careful storage matter.
 - The Vercel project name is still `boardverse`; this is not public-facing but may be renamed later for clarity.
 - Room lobby updates currently poll. This is acceptable for Milestone 3, but faster game screens should use server-backed realtime or tighter polling.
+- Starter questions are suitable for system testing but still need owner review before heavy family use.
