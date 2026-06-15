@@ -1,9 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/final-answer/supabase-browser";
 
 type Panel = "signup" | "login" | "create-room" | "join-room";
-type RoomStatus = "waiting" | "in_game" | "completed";
+type RoomStatus =
+  | "waiting"
+  | "starting"
+  | "fastest_finger"
+  | "hot_seat"
+  | "completed";
 type ReportReason = "wrong_answer" | "ambiguous_wording" | "typo" | "other";
 
 type AccountStats = {
@@ -41,11 +47,23 @@ type Room = {
   canStart: boolean;
   code: string;
   createdAt: string;
+  gameState: GameState | null;
   hostAccountId: string;
   id: string;
   players: RoomPlayer[];
   selectedPlayerCount: number;
   status: RoomStatus;
+};
+
+type GameState = {
+  completedTurnAccountIds: string[];
+  currentRoomStatus: Exclude<RoomStatus, "waiting">;
+  eligibleAccountIds: string[];
+  hostAccountId: string;
+  hotSeatAccountId: string | null;
+  id: string;
+  joinOrder: string[];
+  roomId: string;
 };
 
 type Question = {
@@ -160,6 +178,7 @@ export function FinalAnswerApp() {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [missingSetup, setMissingSetup] = useState<string[]>([]);
   const [message, setMessage] = useState("");
+  const [realtimeStatus, setRealtimeStatus] = useState("Realtime idle");
   const [busy, setBusy] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
@@ -231,9 +250,53 @@ export function FinalAnswerApp() {
 
     const timer = window.setInterval(() => {
       refreshRoom(false);
-    }, 5000);
+    }, 30000);
 
     return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.id, account?.id]);
+
+  useEffect(() => {
+    if (!room?.id || !account) {
+      return;
+    }
+
+    const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return;
+    }
+
+    let refreshQueued = false;
+    const channel = supabase
+      .channel(`room-events:${room.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          filter: `room_id=eq.${room.id}`,
+          schema: "public",
+          table: "room_events",
+        },
+        () => {
+          if (refreshQueued) {
+            return;
+          }
+
+          refreshQueued = true;
+          window.setTimeout(() => {
+            refreshQueued = false;
+            refreshRoom(false);
+          }, 150);
+        },
+      )
+      .subscribe((status) => {
+        setRealtimeStatus(`Realtime ${status.toLowerCase()}`);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id, account?.id]);
 
@@ -522,7 +585,7 @@ export function FinalAnswerApp() {
 
       setRoom(null);
       setMessage(
-        room.status === "in_game"
+        room.status !== "waiting"
           ? "You left after the game started, so you cannot rejoin that game."
           : "You left the room. You can rejoin by code before it starts.",
       );
@@ -556,7 +619,9 @@ export function FinalAnswerApp() {
       }
 
       setRoom(data.room);
-      setMessage("Room moved to in-game. Fastest Finger comes in a later milestone.");
+      setMessage(
+        "Game state created. Room is ready for Fastest Finger in the next milestone.",
+      );
     } catch {
       setMessage("Could not start room. Try again.");
     } finally {
@@ -785,6 +850,7 @@ export function FinalAnswerApp() {
                 onRefreshRoom={() => refreshRoom(true)}
                 onStartRoom={startRoom}
                 onUpdateReady={updateReady}
+                realtimeStatus={room ? realtimeStatus : "Realtime idle"}
                 room={room}
               />
             ) : activePanel === "create-room" || activePanel === "join-room" ? (
@@ -979,10 +1045,14 @@ function RoomLobby(props: {
   onRefreshRoom: () => void;
   onStartRoom: () => void;
   onUpdateReady: (isReady: boolean) => void;
+  realtimeStatus: string;
   room: Room;
 }) {
   const activePlayers = props.room.players.filter((player) => !player.leftAt);
   const waiting = props.room.status === "waiting";
+  const host = props.room.players.find(
+    (player) => player.accountId === props.room.hostAccountId,
+  );
 
   return (
     <div className="grid gap-4">
@@ -1052,12 +1122,23 @@ function RoomLobby(props: {
         ))}
       </div>
 
-      {props.room.status === "in_game" && (
+      {props.room.status !== "waiting" && (
         <div className="border border-[#f6d37a]/35 bg-[#061733]/92 p-4 text-sm leading-6 text-blue-100">
-          Game status is in-game. Fastest Finger and hot seat gameplay are not
-          part of this milestone.
+          Game state is active. Fastest Finger, hot seat gameplay, and lifelines
+          are intentionally saved for later milestones.
         </div>
       )}
+
+      <GameStateDebugPanel
+        activePlayerCount={activePlayers.length}
+        eligiblePlayerCount={props.room.gameState?.eligibleAccountIds.length ?? 0}
+        gameStateId={props.room.gameState?.id ?? "Not created"}
+        hostDisplayName={host?.displayName ?? "No host"}
+        realtimeStatus={props.realtimeStatus}
+        roomCode={props.room.code}
+        roomStatus={props.room.status}
+        selectedPlayerCount={props.room.selectedPlayerCount}
+      />
 
       <div className="grid gap-2 sm:grid-cols-2">
         {waiting && props.currentPlayer && (
@@ -1116,6 +1197,48 @@ function RoomLobby(props: {
         Active players: {activePlayers.length}. Host transfer happens
         automatically if the host leaves.
       </p>
+    </div>
+  );
+}
+
+function GameStateDebugPanel(props: {
+  activePlayerCount: number;
+  eligiblePlayerCount: number;
+  gameStateId: string;
+  hostDisplayName: string;
+  realtimeStatus: string;
+  roomCode: string;
+  roomStatus: RoomStatus;
+  selectedPlayerCount: number;
+}) {
+  return (
+    <div className="border border-[#f6d37a]/45 bg-[#050f25] p-4">
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+        Temporary game-state debug
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+        {[
+          ["Room code", props.roomCode],
+          ["Room status", props.roomStatus.replace("_", " ")],
+          ["Game state", props.gameStateId],
+          ["Host", props.hostDisplayName],
+          [
+            "Players",
+            `${props.activePlayerCount} / ${props.selectedPlayerCount}`,
+          ],
+          ["Eligible", props.eligiblePlayerCount.toLocaleString()],
+          ["Sync", props.realtimeStatus],
+        ].map(([label, value]) => (
+          <div className="border border-[#244b91] bg-[#071a3d] p-2" key={label}>
+            <p className="font-black uppercase tracking-[0.08em] text-blue-100/50">
+              {label}
+            </p>
+            <p className="mt-1 break-words font-mono font-black text-[#f6d37a]">
+              {value}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,23 @@ import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PublicAccount } from "./auth";
 
-export type RoomStatus = "waiting" | "in_game" | "completed";
+export type RoomStatus =
+  | "waiting"
+  | "starting"
+  | "fastest_finger"
+  | "hot_seat"
+  | "completed";
+
+export type GameState = {
+  completedTurnAccountIds: string[];
+  currentRoomStatus: Exclude<RoomStatus, "waiting">;
+  eligibleAccountIds: string[];
+  hostAccountId: string;
+  hotSeatAccountId: string | null;
+  id: string;
+  joinOrder: string[];
+  roomId: string;
+};
 
 export type RoomPlayer = {
   accountId: string;
@@ -24,6 +40,7 @@ export type PublicRoom = {
   players: RoomPlayer[];
   selectedPlayerCount: number;
   canStart: boolean;
+  gameState: GameState | null;
   status: RoomStatus;
 };
 
@@ -34,6 +51,17 @@ type RoomRow = {
   id: string;
   selected_player_count: number;
   status: RoomStatus;
+};
+
+type GameStateRow = {
+  completed_turn_account_ids: string[];
+  current_room_status: Exclude<RoomStatus, "waiting">;
+  eligible_account_ids: string[];
+  host_account_id: string;
+  hot_seat_account_id: string | null;
+  id: string;
+  join_order: string[];
+  room_id: string;
 };
 
 type RoomPlayerRow = {
@@ -98,7 +126,28 @@ function accountForPlayer(player: RoomPlayerRow) {
   return Array.isArray(player.accounts) ? player.accounts[0] : player.accounts;
 }
 
-function toPublicRoom(room: RoomRow, players: RoomPlayerRow[]): PublicRoom {
+function toPublicGameState(row: GameStateRow | null): GameState | null {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    completedTurnAccountIds: row.completed_turn_account_ids,
+    currentRoomStatus: row.current_room_status,
+    eligibleAccountIds: row.eligible_account_ids,
+    hostAccountId: row.host_account_id,
+    hotSeatAccountId: row.hot_seat_account_id,
+    id: row.id,
+    joinOrder: row.join_order,
+    roomId: row.room_id,
+  };
+}
+
+function toPublicRoom(
+  room: RoomRow,
+  players: RoomPlayerRow[],
+  gameState: GameStateRow | null,
+): PublicRoom {
   const publicPlayers = players
     .map((player) => {
       const account = accountForPlayer(player);
@@ -125,6 +174,7 @@ function toPublicRoom(room: RoomRow, players: RoomPlayerRow[]): PublicRoom {
       active.every((player) => player.isReady),
     code: room.code,
     createdAt: room.created_at,
+    gameState: toPublicGameState(gameState),
     hostAccountId: room.host_account_id,
     id: room.id,
     players: publicPlayers,
@@ -160,7 +210,50 @@ async function fetchRoomById(supabase: SupabaseClient, roomId: string) {
     throw playersError;
   }
 
-  return toPublicRoom(room, (players ?? []) as unknown as RoomPlayerRow[]);
+  const { data: gameState, error: gameStateError } = await supabase
+    .from("game_states")
+    .select(
+      "id, room_id, current_room_status, host_account_id, join_order, completed_turn_account_ids, eligible_account_ids, hot_seat_account_id",
+    )
+    .eq("room_id", room.id)
+    .maybeSingle();
+
+  if (gameStateError) {
+    throw gameStateError;
+  }
+
+  return toPublicRoom(
+    room,
+    (players ?? []) as unknown as RoomPlayerRow[],
+    gameState as GameStateRow | null,
+  );
+}
+
+async function emitRoomEvent(
+  supabase: SupabaseClient,
+  input: {
+    actorAccountId?: string;
+    eventType:
+      | "player_joined"
+      | "player_left"
+      | "ready_changed"
+      | "host_changed"
+      | "room_status_changed"
+      | "game_started";
+    payload?: Record<string, unknown>;
+    roomId: string;
+  },
+) {
+  const { error } = await supabase.from("room_events").insert({
+    actor_account_id: input.actorAccountId ?? null,
+    event_type: input.eventType,
+    payload: input.payload ?? {},
+    room_id: input.roomId,
+  });
+
+  if (error) {
+    throw error;
+  }
 }
 
 async function createUniqueRoomCode(supabase: SupabaseClient) {
@@ -213,6 +306,13 @@ export async function createRoom(
   if (playerError) {
     throw playerError;
   }
+
+  await emitRoomEvent(supabase, {
+    actorAccountId: input.account.id,
+    eventType: "player_joined",
+    payload: { source: "create_room" },
+    roomId: room.id,
+  });
 
   return fetchRoomById(supabase, room.id);
 }
@@ -290,6 +390,13 @@ export async function joinRoom(
     }
   }
 
+  await emitRoomEvent(supabase, {
+    actorAccountId: input.account.id,
+    eventType: "player_joined",
+    payload: { rejoined: Boolean(existing) },
+    roomId: room.id,
+  });
+
   return { error: null, room: await fetchRoomById(supabase, room.id) };
 }
 
@@ -328,6 +435,13 @@ export async function setReady(
     throw error;
   }
 
+  await emitRoomEvent(supabase, {
+    actorAccountId: input.accountId,
+    eventType: "ready_changed",
+    payload: { isReady: input.isReady },
+    roomId: input.roomId,
+  });
+
   return { error: null, room: await fetchRoomById(supabase, input.roomId) };
 }
 
@@ -359,6 +473,13 @@ async function transferHostIfNeeded(
   if (error) {
     throw error;
   }
+
+  await emitRoomEvent(supabase, {
+    actorAccountId: leavingAccountId,
+    eventType: "host_changed",
+    payload: { hostAccountId: nextHost.accountId },
+    roomId: room.id,
+  });
 }
 
 export async function leaveRoom(
@@ -384,7 +505,7 @@ export async function leaveRoom(
     .update({
       is_ready: false,
       left_at: new Date().toISOString(),
-      left_during_game: room.status === "in_game",
+      left_during_game: room.status !== "waiting",
       updated_at: new Date().toISOString(),
     })
     .eq("room_id", input.roomId)
@@ -395,6 +516,12 @@ export async function leaveRoom(
   }
 
   await transferHostIfNeeded(supabase, room, input.accountId);
+  await emitRoomEvent(supabase, {
+    actorAccountId: input.accountId,
+    eventType: "player_left",
+    payload: { leftDuringGame: room.status !== "waiting" },
+    roomId: input.roomId,
+  });
   return { error: null, room: await fetchRoomById(supabase, input.roomId) };
 }
 
@@ -424,18 +551,85 @@ export async function startRoom(
     return { error: "not_all_ready" as const, room };
   }
 
-  const { error } = await supabase
+  const now = new Date().toISOString();
+  const active = activePlayers(room.players);
+  const joinOrder = active.map((player) => player.accountId);
+  const { error: startingError } = await supabase
     .from("rooms")
     .update({
-      started_at: new Date().toISOString(),
-      status: "in_game",
-      updated_at: new Date().toISOString(),
+      membership_locked_at: now,
+      started_at: now,
+      status: "starting",
+      updated_at: now,
     })
     .eq("id", input.roomId);
 
-  if (error) {
-    throw error;
+  if (startingError) {
+    throw startingError;
   }
+
+  await emitRoomEvent(supabase, {
+    actorAccountId: input.accountId,
+    eventType: "room_status_changed",
+    payload: { status: "starting" },
+    roomId: input.roomId,
+  });
+
+  const { error: gameStateError } = await supabase.from("game_states").upsert(
+    {
+      completed_turn_account_ids: [],
+      current_room_status: "starting",
+      eligible_account_ids: joinOrder,
+      host_account_id: room.hostAccountId,
+      hot_seat_account_id: null,
+      join_order: joinOrder,
+      room_id: input.roomId,
+      updated_at: now,
+    },
+    { onConflict: "room_id" },
+  );
+
+  if (gameStateError) {
+    throw gameStateError;
+  }
+
+  const fastestFingerAt = new Date().toISOString();
+  const { error: fastestFingerRoomError } = await supabase
+    .from("rooms")
+    .update({
+      status: "fastest_finger",
+      updated_at: fastestFingerAt,
+    })
+    .eq("id", input.roomId);
+
+  if (fastestFingerRoomError) {
+    throw fastestFingerRoomError;
+  }
+
+  const { error: fastestFingerGameStateError } = await supabase
+    .from("game_states")
+    .update({
+      current_room_status: "fastest_finger",
+      updated_at: fastestFingerAt,
+    })
+    .eq("room_id", input.roomId);
+
+  if (fastestFingerGameStateError) {
+    throw fastestFingerGameStateError;
+  }
+
+  await emitRoomEvent(supabase, {
+    actorAccountId: input.accountId,
+    eventType: "room_status_changed",
+    payload: { status: "fastest_finger" },
+    roomId: input.roomId,
+  });
+  await emitRoomEvent(supabase, {
+    actorAccountId: input.accountId,
+    eventType: "game_started",
+    payload: { eligibleAccountIds: joinOrder },
+    roomId: input.roomId,
+  });
 
   return { error: null, room: await fetchRoomById(supabase, input.roomId) };
 }

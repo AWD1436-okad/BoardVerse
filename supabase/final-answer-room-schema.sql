@@ -13,7 +13,9 @@ create table if not exists public.rooms (
   completed_at timestamptz,
   constraint rooms_code_format check (code ~ '^[A-Z0-9]{6}$'),
   constraint rooms_player_count check (selected_player_count between 2 and 10),
-  constraint rooms_status_check check (status in ('waiting', 'in_game', 'completed'))
+  constraint rooms_status_check check (
+    status in ('waiting', 'starting', 'fastest_finger', 'hot_seat', 'completed')
+  )
 );
 
 create table if not exists public.room_players (
