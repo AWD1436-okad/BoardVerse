@@ -45,6 +45,13 @@
 - Use server-created round timestamps for the 30-second Fastest Finger timer.
 - Resolve Fastest Finger winners by fastest correct server-recorded response time, then earliest submitted timestamp if response times match exactly.
 - Move rooms to `hot_seat` after a Fastest Finger winner is found, but leave actual Hot Seat gameplay for Milestone 7.
+- Store Hot Seat progress in a dedicated `hot_seat_turns` table.
+- Keep Hot Seat correct answers server-side until the answer reveal. Before reveal, browser responses include only the visible question and answer choices.
+- Use a short client-side suspense delay after the server locks a final answer, while the actual correctness and safety-net decision is made server-side.
+- Keep Hot Seat progression manual after a reveal: the hot-seat player presses Continue/Next Question so everyone can see the reveal state before the game moves on.
+- Apply safety nets from completed levels: fewer than 3 completed levels pays `$0`, 3-6 completed levels pays `$1,000`, and 7 or more completed levels pays `$32,000`.
+- Return to Fastest Finger after a completed turn when eligible players remain. Mark completed players in game state so they cannot compete again.
+- Defer lifelines to Milestone 8.
 
 ## Open Risks
 
@@ -56,3 +63,4 @@
 - Realtime room events reveal only event metadata to subscribed browser clients. This is acceptable for the private MVP, but access policies should be reviewed again before broader public use.
 - Starter questions are suitable for system testing but still need owner review before heavy family use.
 - Fastest Finger starter questions are suitable for gameplay testing, but should still be reviewed and expanded before broad family use.
+- Hot Seat turn advancement currently uses sequential server operations rather than one transaction. This is acceptable for the private MVP but should eventually move into a Postgres function for stronger consistency.

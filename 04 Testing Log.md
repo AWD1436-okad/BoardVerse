@@ -381,3 +381,59 @@ Known limits:
 - Hot-seat gameplay is intentionally not built yet.
 - Lifelines are intentionally not built yet.
 - Fastest Finger uses sequential server writes rather than a single database function; this is acceptable for the private MVP but should be hardened later.
+
+## 2026-06-15 - Milestone 7 Hot Seat Core Gameplay
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed after removing a direct state update from an effect.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Database actions:
+- Applied `supabase/final-answer-hot-seat-schema.sql` to Supabase project `chhdhlmnlocxwgqdqfip`.
+- Added `hot_seat_turns`.
+- Added `game_states.current_hot_seat_turn_id`.
+- Extended `room_events` to include `hot_seat_question_loaded`, `hot_seat_answer_locked`, and `hot_seat_turn_completed`.
+- Requested a PostgREST schema reload.
+
+Production deployment:
+- Commit `5cff575` was pushed to `main`.
+- Vercel production deployment became Ready.
+- Latest checked deployment URL: `https://boardverse-55yeuo1lq-abdul-malik-durranis-projects.vercel.app`.
+- Public domain checked: `https://playsgrid.org`.
+
+Production API tests at `https://playsgrid.org`:
+- Created two new test accounts.
+- Created a 2-player private room.
+- Second player joined by room code.
+- Both players set Ready and the host started the game.
+- Fastest Finger winner moved into Hot Seat.
+- Hot Seat started at level 1 for `$100`.
+- Hot Seat question loaded without exposing `correctAnswer` before reveal.
+- Correct answers advanced from level 1 through level 7.
+- Wrong answer at level 8 paid the `$32,000` safety net.
+- After the first turn completed, the room returned to `fastest_finger`.
+- Completed player was blocked from the next Fastest Finger round with `403`.
+- The remaining eligible player won the next Fastest Finger round and entered Hot Seat.
+- Wrong answer before reaching the `$1,000` safety net paid `$0`.
+- After both players completed a turn, the room moved to `completed`.
+- Homepage loaded and contained Final Answer branding.
+
+Production browser/UI checks:
+- MCP browser backend could not keep Chrome open, so browser verification used the Playwright CLI.
+- `npx.cmd playwright screenshot --full-page https://playsgrid.org .\tmp-playgrid-desktop.png` - passed.
+- `npx.cmd playwright screenshot --viewport-size=390,844 --full-page https://playsgrid.org .\tmp-playgrid-mobile.png` - passed.
+- Desktop screenshot showed Final Answer branding, account form, Fastest Finger preview, and prize ladder.
+- Mobile screenshot showed the page stacked correctly with no obvious overlap.
+- Temporary screenshots were removed after inspection.
+
+Vercel runtime check:
+- Vercel production runtime logs for errors/fatal logs in the verification window returned no logs.
+
+Known limits:
+- Lifelines are intentionally not built yet.
+- Final results/rankings are intentionally not built yet.
+- Gameplay stats updates are not built yet.
+- Hot-seat question reporting UI is not yet attached to the gameplay screen.
+- Hot-seat server updates are sequential rather than one database transaction.

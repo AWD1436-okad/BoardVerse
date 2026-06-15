@@ -13,7 +13,7 @@ The previous PlayGrid board-game product is retired and can be replaced.
 - Hosting: Vercel.
 - Vercel project currently linked as `boardverse`.
 - GitHub remote: `https://github.com/AWD1436-okad/BoardVerse.git`.
-- Current public app: Final Answer through Milestone 6 Fastest Finger First.
+- Current public app: Final Answer through Milestone 7 Hot Seat Core Gameplay.
 
 ## How To Run Locally
 
@@ -114,6 +114,23 @@ Fastest Finger behavior:
 - If multiple players are correct, fastest response wins; exact ties fall back to earliest submitted timestamp.
 - Winner moves the room to `hot_seat`.
 
+Milestone 7 Hot Seat tables are defined in:
+- `supabase/final-answer-hot-seat-schema.sql`
+
+Tables and fields:
+- `hot_seat_turns`: one row per player's hot-seat turn, including current level, current prize, current question, selected/final answer, reveal status, final winnings, levels completed, questions correct, and placement-rank placeholder.
+- `game_states.current_hot_seat_turn_id`: the active/latest Hot Seat turn for the room.
+
+Hot Seat behavior:
+- The server creates the Hot Seat turn when a room reaches `hot_seat`.
+- The browser receives the visible question and four answers, but not the correct answer before reveal.
+- The hot-seat player selects an answer and confirms it as final.
+- The server locks the answer, checks correctness, applies safety nets, and emits room events.
+- Correct answers advance to the next level.
+- Wrong answers end the turn and store final winnings.
+- Completed players are removed from the next Fastest Finger round.
+- The room returns to `fastest_finger` when eligible players remain, or moves to `completed` when everyone has played.
+
 Plain-English Supabase setup:
 1. Open Supabase and create a project, or open the existing project you want to use.
 2. Go to SQL Editor.
@@ -151,6 +168,13 @@ Fastest Finger setup:
 3. Confirm `fastest_finger_questions` has at least 100 active rows.
 4. Redeploy the Vercel production app.
 
+Hot Seat setup:
+1. Run `supabase/final-answer-hot-seat-schema.sql`.
+2. Confirm `hot_seat_turns` exists.
+3. Confirm `game_states.current_hot_seat_turn_id` exists.
+4. Confirm `room_events` accepts Hot Seat event types.
+5. Redeploy the Vercel production app.
+
 Important:
 - Do not paste Supabase keys into chat.
 - Do not put Supabase keys into code.
@@ -176,8 +200,9 @@ Standard production flow:
 - Milestone 4 question database and reporting foundation is implemented, deployed, connected to Supabase, seeded, and production-verified.
 - Milestone 5 realtime game-state foundation is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 6 Fastest Finger First is implemented, deployed, connected to Supabase, seeded, and production-verified.
-- No chat, hot-seat gameplay, lifelines, or gameplay stats updates exist yet.
-- Starting a room now creates a `game_states` record, starts Fastest Finger, and moves the winner to `hot_seat`; actual Hot Seat gameplay is pending.
+- Milestone 7 Hot Seat Core Gameplay is implemented, deployed, connected to Supabase, and production-verified.
+- No chat, lifelines, final rankings, or gameplay stats updates exist yet.
+- Starting a room now creates a `game_states` record, starts Fastest Finger, moves the winner to `hot_seat`, and plays through hot-seat turns until the room is `completed`.
 - Full 1,200-question generation/import process still needs implementation and review.
 - The temporary game-state debug panel should be removed or hidden before final launch.
 - Start Game should eventually become a single Postgres transaction/function to reduce partial-update risk.

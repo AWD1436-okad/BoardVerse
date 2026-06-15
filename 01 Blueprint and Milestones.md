@@ -131,17 +131,31 @@ Implementation note:
 - When a winner is found, the room moves from `fastest_finger` to `hot_seat` and the winner is stored on `game_states`.
 - Hot Seat gameplay itself is intentionally left for Milestone 7.
 
-### Milestone 7 - Hot Seat Game and Lifelines
+### Milestone 7 - Hot Seat Core Gameplay - Completed 2026-06-15
 
 - 12-level money ladder.
 - Safety nets at `$1,000` and `$32,000`.
 - Correct/wrong reveal states.
+- End each player after their turn.
+
+Implementation note:
+- Added server-owned Hot Seat turns in `hot_seat_turns`.
+- After a Fastest Finger winner is chosen, the Hot Seat starts at level 1 for `$100`.
+- The browser receives question text and answers only; the correct answer stays server-side until reveal.
+- The hot-seat player selects an answer, confirms "final answer", then the UI waits briefly before showing correct or wrong.
+- Correct answers advance to the next level.
+- Wrong answers end that player's turn and apply the `$1,000` / `$32,000` safety-net rules.
+- Completed players are removed from the next Fastest Finger round.
+- When eligible players remain, the room returns to `fastest_finger`; when nobody remains, the room moves to `completed`.
+- Lifelines are intentionally not included in this milestone.
+
+### Milestone 8 - Lifelines
+
 - 50:50.
 - Ask The Audience generated percentages.
 - Pass queue behavior.
-- End each player after their turn.
 
-### Milestone 8 - Results, Stats, Polish, Deployment
+### Milestone 9 - Results, Stats, Polish, Deployment
 
 - Ranking with tied places.
 - Stats updates.

@@ -191,5 +191,33 @@ What is still not built:
 - Walk-away, wrong-answer reveal, safety-net payout, final results, and stat updates are not built yet.
 - The temporary game-state debug panel is still visible.
 
+## 2026-06-15 - Milestone 7 Hot Seat Core Gameplay Completed
+
+Milestone 7 has added the complete core hot-seat question flow, without lifelines.
+
+What works now:
+- Fastest Finger winners move into the Hot Seat.
+- The first Hot Seat question starts at level 1 for `$100`.
+- The browser shows the question, A/B/C/D answers, current prize, and prize ladder.
+- The correct answer is not sent to the browser before the final-answer reveal.
+- The hot-seat player can select an answer, see it highlighted, and confirm or cancel with "Is that your final answer?"
+- After final answer, controls lock briefly before the server result is shown.
+- Correct answers turn green and advance the player to the next level.
+- Wrong answers turn red, end the player's turn, and apply safety-net winnings.
+- `$1,000` and `$32,000` safety-net behavior is implemented.
+- Completed players are blocked from the next Fastest Finger round.
+- If eligible players remain, the room returns to `fastest_finger`.
+- If all players have completed their hot-seat turn, the room moves to `completed`.
+- Hot-seat turn data stores final winnings, completed levels, questions answered correctly, and a placement-rank placeholder for later results work.
+
+What is still not built:
+- 50:50 is not built yet.
+- Ask The Audience is not built yet.
+- Pass is not built yet.
+- Final rankings and tied placement display are not built yet.
+- Gameplay stats updates are not built yet.
+- Question reporting exists from Milestone 4 but is not yet shown directly on the Hot Seat screen.
+- The temporary game-state debug panel is still visible.
+
 Next milestone:
-- Milestone 7: Hot Seat Core Gameplay and lifelines foundation.
+- Milestone 8: 50:50, Ask The Audience, and Pass lifelines.
