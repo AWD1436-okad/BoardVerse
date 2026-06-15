@@ -326,3 +326,58 @@ Known limits:
 - Fastest Finger First questions and ordering gameplay are intentionally not built yet.
 - Hot-seat gameplay and lifelines are intentionally not built yet.
 - Start Game uses sequential server operations, not one database transaction; this should be hardened before a larger launch.
+
+## 2026-06-15 - Milestone 6 Fastest Finger First
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Database actions:
+- Applied `supabase/final-answer-fastest-finger-schema.sql`.
+- Added `fastest_finger_questions`.
+- Added `fastest_finger_rounds`.
+- Added `fastest_finger_submissions`.
+- Added `game_states.current_fastest_finger_round_id`.
+- Added `game_states.fastest_finger_winner_account_id`.
+- Extended `room_events` to include `fastest_finger_round_started`, `fastest_finger_submitted`, and `fastest_finger_winner`.
+- Seeded 100 active Fastest Finger ordering questions.
+
+Database verification:
+- Active Fastest Finger questions: 100.
+- RLS enabled on `fastest_finger_questions`, `fastest_finger_rounds`, and `fastest_finger_submissions`.
+- New game-state columns exist.
+- Production test actions created rounds, submissions, winner records, and Fastest Finger room events.
+
+Production API tests at `https://playsgrid.org`:
+- Created a 2-player room.
+- Both players joined and set Ready.
+- Host started the game.
+- Fastest Finger question loaded.
+- Response included four items and a 30-second server timer.
+- Response did not expose `correct_order` or `correctOrder`.
+- Wrong submissions from all eligible players saved.
+- Nobody-correct flow immediately returned a new Fastest Finger round.
+- Correct submissions from both players saved.
+- Fastest correct player won.
+- Room status moved to `hot_seat`.
+- `game_states.hot_seat_account_id` matched the Fastest Finger winner.
+- Multiple correct submissions were handled deterministically by response time, then submitted timestamp if needed.
+
+Production browser tests at `https://playsgrid.org`:
+- Live page loaded with Final Answer branding.
+- Browser room creation worked.
+- Second player joined through the production API and appeared through realtime sync.
+- Host Ready worked in the browser.
+- Start Game opened the Fastest Finger UI.
+- Fastest Finger UI showed Round number, 30-second countdown, prompt, four reorderable items, move controls, Submit Order, and submission count.
+- Browser submission worked and showed "Waiting for other players...".
+- Expired/nobody-correct round advanced to a new Round 2 question.
+- Browser console errors: none found.
+
+Known limits:
+- Hot-seat gameplay is intentionally not built yet.
+- Lifelines are intentionally not built yet.
+- Fastest Finger uses sequential server writes rather than a single database function; this is acceptable for the private MVP but should be hardened later.

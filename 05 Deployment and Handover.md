@@ -13,7 +13,7 @@ The previous PlayGrid board-game product is retired and can be replaced.
 - Hosting: Vercel.
 - Vercel project currently linked as `boardverse`.
 - GitHub remote: `https://github.com/AWD1436-okad/BoardVerse.git`.
-- Current public app: Final Answer through Milestone 5 realtime game-state foundation.
+- Current public app: Final Answer through Milestone 6 Fastest Finger First.
 
 ## How To Run Locally
 
@@ -92,6 +92,28 @@ Realtime behavior:
 - Browsers refresh room data through the existing server API after an event arrives.
 - A 30-second polling fallback remains in place.
 
+Milestone 6 Fastest Finger tables are defined in:
+- `supabase/final-answer-fastest-finger-schema.sql`
+
+Fastest Finger seed/data files:
+- `src/lib/final-answer/starter-fastest-finger-questions.js`
+- `scripts/seed-fastest-finger.mjs`
+
+Tables and fields:
+- `fastest_finger_questions`: ordering prompts, four items, correct order, category, active status, and report count.
+- `fastest_finger_rounds`: room/game-state round records, chosen question, round number, start/end timestamps, status, and winner.
+- `fastest_finger_submissions`: account submission records, submitted order, correctness, response milliseconds, and submission timestamp.
+- `game_states.current_fastest_finger_round_id`: active/latest Fastest Finger round.
+- `game_states.fastest_finger_winner_account_id`: winner who should enter hot seat.
+
+Fastest Finger behavior:
+- The browser only receives the prompt and shuffled items.
+- Correct order remains server-side.
+- The server records response time and correctness.
+- If every eligible player is wrong, the next round starts immediately.
+- If multiple players are correct, fastest response wins; exact ties fall back to earliest submitted timestamp.
+- Winner moves the room to `hot_seat`.
+
 Plain-English Supabase setup:
 1. Open Supabase and create a project, or open the existing project you want to use.
 2. Go to SQL Editor.
@@ -123,6 +145,12 @@ Realtime game-state setup:
 4. Confirm `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are configured in Vercel so the browser can subscribe to room events.
 5. Redeploy the Vercel production app.
 
+Fastest Finger setup:
+1. Run `supabase/final-answer-fastest-finger-schema.sql`.
+2. Seed starter questions with `npm.cmd run seed:fastest-finger` if local server secrets are available, or insert the starter set through Supabase SQL/admin tooling.
+3. Confirm `fastest_finger_questions` has at least 100 active rows.
+4. Redeploy the Vercel production app.
+
 Important:
 - Do not paste Supabase keys into chat.
 - Do not put Supabase keys into code.
@@ -147,8 +175,9 @@ Standard production flow:
 - Milestone 3 private rooms are implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 4 question database and reporting foundation is implemented, deployed, connected to Supabase, seeded, and production-verified.
 - Milestone 5 realtime game-state foundation is implemented, deployed, connected to Supabase, and production-verified.
-- No chat, Fastest Finger gameplay, hot-seat gameplay, lifelines, or gameplay stats updates exist yet.
-- Starting a room now creates a `game_states` record and moves the room to `fastest_finger`; the actual Fastest Finger UI and question flow are pending.
+- Milestone 6 Fastest Finger First is implemented, deployed, connected to Supabase, seeded, and production-verified.
+- No chat, hot-seat gameplay, lifelines, or gameplay stats updates exist yet.
+- Starting a room now creates a `game_states` record, starts Fastest Finger, and moves the winner to `hot_seat`; actual Hot Seat gameplay is pending.
 - Full 1,200-question generation/import process still needs implementation and review.
 - The temporary game-state debug panel should be removed or hidden before final launch.
 - Start Game should eventually become a single Postgres transaction/function to reduce partial-update risk.

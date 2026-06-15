@@ -166,3 +166,30 @@ What is still not built:
 
 Next milestone:
 - Milestone 6: Fastest Finger First.
+
+## 2026-06-15 - Milestone 6 Fastest Finger First Completed
+
+Milestone 6 has added the first real gameplay flow.
+
+What works now:
+- Supabase has a separate Fastest Finger ordering-question bank.
+- The production database contains 100 active Fastest Finger starter questions.
+- Fastest Finger rounds are created when a started room reaches `fastest_finger`.
+- Each round has a synchronized 30-second server timestamp window.
+- Eligible players see the same ordering question and four reorderable items.
+- The UI supports drag-and-drop plus up/down controls for mobile and keyboard-friendly use.
+- Submissions save the submitted order, response time, and correctness.
+- Players see "Waiting for other players..." after submitting.
+- If nobody is correct, the next Fastest Finger round is created immediately.
+- If more than one player is correct, the fastest recorded correct submission wins.
+- The winner is revealed by display name.
+- The room moves to `hot_seat` and the winner is stored as the hot-seat account.
+
+What is still not built:
+- Hot-seat question gameplay is not built yet.
+- 50:50, Ask The Audience, and Pass are not built yet.
+- Walk-away, wrong-answer reveal, safety-net payout, final results, and stat updates are not built yet.
+- The temporary game-state debug panel is still visible.
+
+Next milestone:
+- Milestone 7: Hot Seat Core Gameplay and lifelines foundation.

@@ -40,6 +40,11 @@
 - Use 240 generated starter questions first, not the full 1,200-question target, so the schema and report flow can be proven before scaling content.
 - Use an `is_admin` boolean on accounts for the first admin foundation.
 - Keep the admin seed route protected by account admin status.
+- Store Fastest Finger ordering questions separately from hot-seat questions.
+- Keep Fastest Finger correct orders server-side only; browser responses include prompt and item keys/text, not the correct order.
+- Use server-created round timestamps for the 30-second Fastest Finger timer.
+- Resolve Fastest Finger winners by fastest correct server-recorded response time, then earliest submitted timestamp if response times match exactly.
+- Move rooms to `hot_seat` after a Fastest Finger winner is found, but leave actual Hot Seat gameplay for Milestone 7.
 
 ## Open Risks
 
@@ -50,3 +55,4 @@
 - The current Start Game flow performs several server operations in sequence rather than one database transaction. It is acceptable for the private MVP foundation but should be hardened with a Postgres function before heavier gameplay or larger groups.
 - Realtime room events reveal only event metadata to subscribed browser clients. This is acceptable for the private MVP, but access policies should be reviewed again before broader public use.
 - Starter questions are suitable for system testing but still need owner review before heavy family use.
+- Fastest Finger starter questions are suitable for gameplay testing, but should still be reviewed and expanded before broad family use.

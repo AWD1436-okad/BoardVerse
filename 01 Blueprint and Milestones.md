@@ -113,12 +113,23 @@ Implementation note:
 - A temporary logged-in debug panel shows room code, room status, game-state id, host, player count, eligible count, and realtime subscription status.
 - Fastest Finger questions and gameplay are intentionally not built until Milestone 6.
 
-### Milestone 6 - Fastest Finger First
+### Milestone 6 - Fastest Finger First - Completed 2026-06-15
 
 - 30-second ordering challenge.
 - Server-recorded submission timing.
 - Fastest correct player enters hot seat.
 - Repeat after each completed hot-seat turn for remaining eligible players.
+
+Implementation note:
+- Added a separate Fastest Finger ordering-question bank with 100 active starter questions.
+- Added server-owned Fastest Finger rounds and submissions.
+- The browser receives prompt/items only; correct order stays server-side.
+- Players see the same ordering question, arrange four draggable items, submit, and then wait for the other eligible players.
+- Submission timing is recorded server-side in milliseconds from the server round start.
+- If nobody submits the correct order, the server immediately creates a new Fastest Finger round.
+- If multiple players are correct, fastest recorded submission wins; exact timing ties fall back to earliest submitted timestamp.
+- When a winner is found, the room moves from `fastest_finger` to `hot_seat` and the winner is stored on `game_states`.
+- Hot Seat gameplay itself is intentionally left for Milestone 7.
 
 ### Milestone 7 - Hot Seat Game and Lifelines
 
