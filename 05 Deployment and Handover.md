@@ -254,7 +254,7 @@ Standard production flow:
 - Milestone 6 Fastest Finger First is implemented, deployed, connected to Supabase, seeded, and production-verified.
 - Milestone 7 Hot Seat Core Gameplay is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 8 Lifelines is implemented, deployed, connected to Supabase, and production-verified.
-- Milestone 9 Final Results, Stats, and In-Game Reporting is implemented in code and database schema; production gameplay verification should be completed after the latest deployment is Ready.
+- Milestone 9 Final Results, Stats, and In-Game Reporting is implemented, deployed, connected to Supabase, and production-verified through API/database checks.
 - No chat, sound effects, full question bank, or advanced admin question editing exists yet.
 - Starting a room now creates a `game_states` record, starts Fastest Finger, moves the winner to `hot_seat`, and plays through hot-seat turns until the room is `completed`.
 - Hot Seat players can now use 50:50, Ask The Audience, and Pass.

@@ -54,7 +54,7 @@ export async function POST(
 
   if (result.error === "already_reported") {
     return jsonError(
-      "You already reported this question for that reason.",
+      "You already reported this question.",
       409,
       "already_reported",
     );

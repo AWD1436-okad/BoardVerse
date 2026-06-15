@@ -516,8 +516,33 @@ Browser/UI checks:
 - Playwright browser MCP failed before opening a page because the target browser page closed during launch.
 - Browser verification will be completed against the deployed production site after Vercel deploys the committed changes.
 
+Production deployment verification:
+- Commit `19bf789` deployed to Vercel as `dpl_6w78LFJUH43LoUwKRuT3sq9huZwN` and reached Ready.
+- `https://playsgrid.org` returned HTTP 200.
+- `https://playsgrid.org` contained Final Answer, Create Account, and Join Room content.
+- `/api/account/session` returned `configured: true`, confirming production Supabase variables are active.
+
+Production results/stat tests:
+- Created production test accounts through the live signup API.
+- Created and joined private rooms through the live room APIs.
+- Used controlled completed-game database rows to verify deterministic finalization behavior.
+- Verified a highest-winnings result ranks 1st, marks `wonOutright`, and updates wins, games played, highest prize won, total money won, Fastest Finger wins, and questions answered correctly.
+- Called the results endpoint twice and verified stats did not double-count.
+- Verified tied highest winnings give both players placement 1 and `tiedForFirst`.
+- Verified tie stats update.
+
+Production question-report tests:
+- Submitted a Hot Seat question report with room id, Hot Seat turn id, reason, and note.
+- Verified report count increased.
+- Verified a second report for the same Hot Seat question turn was blocked with `409 already_reported`.
+- Temporarily marked the production test account as admin and verified the admin report list returned reported questions with reasons and context.
+
+Build issue and repair:
+- One `npx.cmd next build` run failed because the hidden local dev server held a Windows file lock in `.next`.
+- Stopped the local dev server process, removed the generated `.next` folder after path verification, and reran `npx.cmd next build` successfully.
+
 Known limits:
-- Full end-to-end production gameplay verification still needs to run after the deployment containing this milestone is Ready.
+- Full manual browser gameplay through the visible UI still needs a human click-through because the Playwright browser MCP could not keep Chrome open in this session.
 - The full 1,200-question set is not built.
 - Admin question editing/deactivation tools are not built.
 - Chat and sound effects are not built.
