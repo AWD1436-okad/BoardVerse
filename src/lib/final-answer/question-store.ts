@@ -29,7 +29,10 @@ export type AdminReportedQuestion = PublicQuestion & {
     accountId: string;
     createdAt: string;
     displayName: string;
+    note: string | null;
     reason: QuestionReportReason;
+    roomId: string | null;
+    turnId: string | null;
     username: string;
   }>;
 };
@@ -77,7 +80,10 @@ type ReportRow = {
       }>
     | null;
   created_at: string;
+  hot_seat_turn_id: string | null;
+  note: string | null;
   reason: QuestionReportReason;
+  room_id: string | null;
 };
 
 export const questionPrizes = [
@@ -171,8 +177,11 @@ export async function reportQuestion(
   supabase: SupabaseClient,
   input: {
     account: PublicAccount;
+    note?: string;
     questionId: string;
     reason: QuestionReportReason;
+    roomId?: string;
+    turnId?: string;
   },
 ) {
   const { data: question, error: questionError } = await supabase
@@ -191,8 +200,11 @@ export async function reportQuestion(
 
   const { error: insertError } = await supabase.from("question_reports").insert({
     account_id: input.account.id,
+    hot_seat_turn_id: input.turnId ?? null,
+    note: input.note?.trim() ? input.note.trim().slice(0, 240) : null,
     question_id: input.questionId,
     reason: input.reason,
+    room_id: input.roomId ?? null,
   });
 
   if (insertError) {
@@ -243,7 +255,9 @@ export async function listReportedQuestions(supabase: SupabaseClient) {
   const questionIds = questions.map((question) => question.id);
   const { data: reports, error: reportError } = await supabase
     .from("question_reports")
-    .select("question_id, account_id, reason, created_at, accounts(username, display_name)")
+    .select(
+      "question_id, account_id, reason, note, room_id, hot_seat_turn_id, created_at, accounts(username, display_name)",
+    )
     .in("question_id", questionIds)
     .order("created_at", { ascending: false });
 
@@ -274,7 +288,10 @@ export async function listReportedQuestions(supabase: SupabaseClient) {
         accountId: report.account_id,
         createdAt: report.created_at,
         displayName: account?.display_name ?? "Unknown",
+        note: report.note,
         reason: report.reason,
+        roomId: report.room_id,
+        turnId: report.hot_seat_turn_id,
         username: account?.username ?? "unknown",
       };
     }),

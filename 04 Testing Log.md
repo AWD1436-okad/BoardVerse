@@ -484,3 +484,40 @@ Known limits:
 - Chat is not built.
 - The full 1,200-question set is not built.
 - The starter Hot Seat question bank currently has all correct answers as answer A and should be balanced before broader family use.
+
+## 2026-06-16 - Milestone 9 Final Results, Stats, and In-Game Reporting
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Database actions:
+- Applied `supabase/final-answer-results-schema.sql` to Supabase project `chhdhlmnlocxwgqdqfip`.
+- Added `rooms.results_finalized_at`.
+- Added `game_results`.
+- Added room, Hot Seat turn, and note fields to `question_reports`.
+- Added one-report-per-Hot-Seat-turn unique protection for question reports.
+- Rebalanced the current 240 active Hot Seat starter questions across A, B, C, and D.
+
+Database verification:
+- Local starter question file contains 240 questions.
+- Local starter question correct-answer spread is A: 60, B: 60, C: 60, D: 60.
+- Production active question correct-answer spread is A: 60, B: 60, C: 60, D: 60.
+- Production `question_reports_one_per_turn_idx` exists.
+
+Local app checks:
+- Local dev server returned HTTP 200 for `/`.
+- Local homepage HTML contained Final Answer, Create Account, and Join Room content.
+- Local API session route correctly reported missing Supabase variables in local `.env.local`; production verification must use Vercel variables.
+
+Browser/UI checks:
+- Playwright browser MCP failed before opening a page because the target browser page closed during launch.
+- Browser verification will be completed against the deployed production site after Vercel deploys the committed changes.
+
+Known limits:
+- Full end-to-end production gameplay verification still needs to run after the deployment containing this milestone is Ready.
+- The full 1,200-question set is not built.
+- Admin question editing/deactivation tools are not built.
+- Chat and sound effects are not built.

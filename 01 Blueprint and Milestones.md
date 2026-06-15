@@ -163,17 +163,24 @@ Implementation note:
 - Lifeline changes emit room events so other players refresh into the same state.
 - Correct answers and Fastest Finger correct order remain server-side before reveal.
 
-### Milestone 9 - Final Results, Stats, and Question Reporting in Gameplay
+### Milestone 9 - Final Results, Stats, and Question Reporting in Gameplay - Completed 2026-06-16
 
 - Ranking with tied places.
 - Stats updates.
 - In-game question reporting from the Hot Seat screen.
 - End-results screen.
 
-### Milestone 10 - Polish, Deployment, and Handover
+Implementation note:
+- Rebalanced the 240 starter Hot Seat questions so active correct answers are evenly spread across A, B, C, and D.
+- Added `game_results` and `rooms.results_finalized_at` so final rankings and stats are finalized server-side only once.
+- Added a completed-game Final Results screen with tied placement support and Return Home behavior.
+- Stats update at finalization: games played, wins, ties, highest prize won, total money won, Fastest Finger wins, and questions answered correctly.
+- Added Hot Seat question reporting with room and turn context, optional notes, report-count updates, and one-report-per-question-turn protection.
+- Admin report review now includes individual report reasons, notes, room ids, and turn ids.
 
-- Premium responsive quiz-show UI.
-- Dramatic timer animation.
-- Browser testing of core flows.
-- Production deployment verification.
-- Plain-English handover.
+### Milestone 10 - Full Question Bank, Review, and Admin Tools
+
+- Expand from 240 starter Hot Seat questions to the planned 1,200 questions.
+- Add question quality review workflow for wrong, ambiguous, unsuitable, or inactive questions.
+- Add admin tools for reviewing reports and deactivating or correcting questions.
+- Continue responsive UI polish, browser testing of core flows, production verification, and handover updates.

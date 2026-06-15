@@ -303,6 +303,30 @@ function sql(value) {
 }
 
 const rows = [];
+const answerKeys = ["A", "B", "C", "D"];
+
+function rotateAnswers(correctAnswer, wrongAnswers, targetCorrectKey) {
+  const answers = {
+    A: wrongAnswers[0],
+    B: wrongAnswers[1],
+    C: wrongAnswers[2],
+    D: wrongAnswers[0],
+  };
+  const wrongQueue = [...wrongAnswers];
+
+  for (const key of answerKeys) {
+    answers[key] =
+      key === targetCorrectKey ? correctAnswer : (wrongQueue.shift() ?? "");
+  }
+
+  return {
+    answer_a: answers.A,
+    answer_b: answers.B,
+    answer_c: answers.C,
+    answer_d: answers.D,
+    correct_answer: targetCorrectKey,
+  };
+}
 
 for (const [levelIndex, facts] of levelFacts.entries()) {
   const level = levelIndex + 1;
@@ -312,19 +336,23 @@ for (const [levelIndex, facts] of levelFacts.entries()) {
     throw new Error(`Level ${level} has ${facts.length} questions, expected 20.`);
   }
 
-  for (const [questionText, answerA, answerB, answerC, answerD, category] of facts) {
+  for (const fact of facts) {
+    const [questionText, answerA, answerB, answerC, answerD, category] = fact;
     if (!categories.includes(category)) {
       throw new Error(`Unexpected category ${category}`);
     }
 
+    const targetCorrectKey = answerKeys[rows.length % answerKeys.length];
+    const rotated = rotateAnswers(answerA, [answerB, answerC, answerD], targetCorrectKey);
+
     rows.push({
       active: true,
-      answer_a: answerA,
-      answer_b: answerB,
-      answer_c: answerC,
-      answer_d: answerD,
+      answer_a: rotated.answer_a,
+      answer_b: rotated.answer_b,
+      answer_c: rotated.answer_c,
+      answer_d: rotated.answer_d,
       category,
-      correct_answer: "A",
+      correct_answer: rotated.correct_answer,
       level,
       prize_amount: prize,
       question_text: questionText,

@@ -27,7 +27,10 @@ export async function POST(
   }
 
   const body = (await request.json().catch(() => null)) as {
+    note?: string;
     reason?: string;
+    roomId?: string;
+    turnId?: string;
   } | null;
   const reason = validateReportReason(body?.reason);
 
@@ -38,8 +41,11 @@ export async function POST(
   const { questionId } = await params;
   const result = await reportQuestion(context.supabase!, {
     account: context.account,
+    note: body?.note,
     questionId,
     reason: reason.reason,
+    roomId: body?.roomId,
+    turnId: body?.turnId,
   });
 
   if (result.error === "question_not_found") {

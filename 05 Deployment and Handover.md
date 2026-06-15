@@ -192,6 +192,41 @@ Lifeline behavior:
 - Pass rotates the eligible player queue server-side and does not mark the passing player as complete.
 - Browsers see lifeline effects through the existing room event refresh flow.
 
+Milestone 9 results and in-game reporting are defined in:
+- `supabase/final-answer-results-schema.sql`
+
+Results fields:
+- `rooms.results_finalized_at`
+- `game_results.room_id`
+- `game_results.account_id`
+- `game_results.display_name`
+- `game_results.final_winnings`
+- `game_results.highest_level_reached`
+- `game_results.questions_answered_correctly`
+- `game_results.fastest_finger_wins`
+- `game_results.won_outright`
+- `game_results.tied_for_first`
+- `game_results.placement`
+- `game_results.completed_at`
+
+Results behavior:
+- The server finalizes results after a room reaches `completed`.
+- Ranking is based on final winnings.
+- Tied players share the same placement.
+- Account stats update once when results are finalized.
+- Refreshing the completed results screen should not double-count stats.
+
+In-game question reporting:
+- Hot Seat players can report the current question for Wrong answer, Ambiguous wording, Typo, or Other.
+- Reports can include an optional short note.
+- Reports store room and Hot Seat turn context.
+- Report counts update automatically.
+- A player cannot repeatedly report the same Hot Seat question turn.
+
+Starter Hot Seat question data:
+- The current 240 starter Hot Seat questions are balanced across correct answers A, B, C, and D.
+- The full 1,200-question set is still a later milestone and should include owner review before broad use.
+
 Important:
 - Do not paste Supabase keys into chat.
 - Do not put Supabase keys into code.
@@ -219,10 +254,10 @@ Standard production flow:
 - Milestone 6 Fastest Finger First is implemented, deployed, connected to Supabase, seeded, and production-verified.
 - Milestone 7 Hot Seat Core Gameplay is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 8 Lifelines is implemented, deployed, connected to Supabase, and production-verified.
-- No chat, final rankings, gameplay stats updates, or in-game Hot Seat question reporting exist yet.
+- Milestone 9 Final Results, Stats, and In-Game Reporting is implemented in code and database schema; production gameplay verification should be completed after the latest deployment is Ready.
+- No chat, sound effects, full question bank, or advanced admin question editing exists yet.
 - Starting a room now creates a `game_states` record, starts Fastest Finger, moves the winner to `hot_seat`, and plays through hot-seat turns until the room is `completed`.
 - Hot Seat players can now use 50:50, Ask The Audience, and Pass.
 - Full 1,200-question generation/import process still needs implementation and review.
-- The starter Hot Seat question set currently has all correct answers as answer A and should be balanced before broader family use.
 - The temporary game-state debug panel should be removed or hidden before final launch.
 - Start Game should eventually become a single Postgres transaction/function to reduce partial-update risk.

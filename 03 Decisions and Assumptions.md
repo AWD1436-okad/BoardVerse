@@ -58,6 +58,13 @@
 - If Ask The Audience and 50:50 are both used, removed answers show 0% and the visible answers still total 100%.
 - Pass does not mark the passing player complete. It moves them to the back of the eligible queue, preserves their progress and used lifelines, and gives the next eligible player a new question at the same level.
 - Pass is unavailable when there is no other eligible player.
+- Keep final results server-owned. The browser can request results, but ranking, win/tie decisions, and stat updates are calculated by server routes using database state.
+- Store final per-player result rows in `game_results` and use `rooms.results_finalized_at` as a one-time finalization guard so refreshes do not double-count stats.
+- Use competition ranking for ties: tied players share the same placement and the next placement skips ahead.
+- Count Fastest Finger wins from completed Fastest Finger rounds when final results are finalized.
+- Allow Hot Seat question reports during gameplay, but store them server-side with room and turn context and do not expose correct answers.
+- Block repeat reporting for the same Hot Seat question turn with a database unique index.
+- Keep the current starter Hot Seat dataset at 240 questions until the Milestone 10 quality-review workflow is ready.
 
 ## Open Risks
 
@@ -70,5 +77,5 @@
 - Starter questions are suitable for system testing but still need owner review before heavy family use.
 - Fastest Finger starter questions are suitable for gameplay testing, but should still be reviewed and expanded before broad family use.
 - Hot Seat turn advancement currently uses sequential server operations rather than one transaction. This is acceptable for the private MVP but should eventually move into a Postgres function for stronger consistency.
-- The current starter Hot Seat question set has all correct answers stored as answer A. This is acceptable for proving the system but should be balanced before broader family play.
 - Lifeline updates currently use sequential server operations rather than one transaction. This is acceptable for the private MVP, but 50:50, Pass, and reveal transitions should eventually move into Postgres functions for stronger consistency under simultaneous clicks.
+- Result finalization currently uses sequential server operations protected by a room-level finalization timestamp. This prevents duplicate stat updates for normal refresh/retry behavior, but a future Postgres function would make the whole finalization fully transactional.

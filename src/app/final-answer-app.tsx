@@ -153,11 +153,34 @@ type HotSeatState = {
   usedPass: boolean;
 };
 
+type GameResult = {
+  accountId: string;
+  completedAt: string;
+  displayName: string;
+  fastestFingerWins: number;
+  finalWinnings: number;
+  highestLevelReached: number;
+  placement: number;
+  questionsAnsweredCorrectly: number;
+  tiedForFirst: boolean;
+  wonOutright: boolean;
+};
+
 type ReportedQuestion = Question & {
   active: boolean;
   correctAnswer: string;
   createdAt: string;
   reportCount: number;
+  reports?: Array<{
+    accountId: string;
+    createdAt: string;
+    displayName: string;
+    note: string | null;
+    reason: ReportReason;
+    roomId: string | null;
+    turnId: string | null;
+    username: string;
+  }>;
 };
 
 type ApiResponse = {
@@ -173,6 +196,7 @@ type ApiResponse = {
   question?: Question | null;
   questions?: ReportedQuestion[];
   reportCount?: number;
+  results?: GameResult[];
   room?: Room | null;
 };
 
@@ -233,6 +257,11 @@ const reportReasons: Array<[ReportReason, string]> = [
   ["other", "Other"],
 ];
 
+const reportReasonLabels = Object.fromEntries(reportReasons) as Record<
+  ReportReason,
+  string
+>;
+
 function formatStat(key: keyof AccountStats, value: number) {
   if (key === "highestPrizeWon" || key === "totalMoneyWon") {
     return `$${value.toLocaleString()}`;
@@ -274,6 +303,7 @@ export function FinalAnswerApp() {
   const [confirmingHotSeatAnswer, setConfirmingHotSeatAnswer] = useState(false);
   const [confirmingPass, setConfirmingPass] = useState(false);
   const [hotSeatRevealPending, setHotSeatRevealPending] = useState(false);
+  const [gameResults, setGameResults] = useState<GameResult[]>([]);
   const [timerNow, setTimerTick] = useState(Date.now());
   const [question, setQuestion] = useState<Question | null>(null);
   const [reportedQuestions, setReportedQuestions] = useState<ReportedQuestion[]>(
@@ -291,6 +321,9 @@ export function FinalAnswerApp() {
   const [questionLevel, setQuestionLevel] = useState(1);
   const [reportReason, setReportReason] =
     useState<ReportReason>("wrong_answer");
+  const [hotSeatReportReason, setHotSeatReportReason] =
+    useState<ReportReason>("wrong_answer");
+  const [hotSeatReportNote, setHotSeatReportNote] = useState("");
 
   const stats = account?.stats ?? emptyStats;
   const joinedDate = account?.createdAt
@@ -365,6 +398,11 @@ export function FinalAnswerApp() {
       return;
     }
 
+    if (room.status === "completed") {
+      loadGameResults(false);
+      return;
+    }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id, room?.status, account?.id]);
 
@@ -415,6 +453,8 @@ export function FinalAnswerApp() {
               loadFastestFingerState(false);
             } else if (room.status === "hot_seat") {
               loadHotSeatState(false);
+            } else if (room.status === "completed") {
+              loadGameResults(false);
             }
           }, 150);
         },
@@ -591,6 +631,7 @@ export function FinalAnswerApp() {
       }
 
       setRoom(data.room);
+      setGameResults([]);
       setMessage(`Room created. Share code ${data.room.code}.`);
     } catch {
       setMessage("Could not create room. Try again.");
@@ -629,6 +670,7 @@ export function FinalAnswerApp() {
       }
 
       setRoom(data.room);
+      setGameResults([]);
       setJoinCode(data.room.code);
       setMessage(`Joined room ${data.room.code}.`);
     } catch {
@@ -717,6 +759,7 @@ export function FinalAnswerApp() {
       setRoom(null);
       setFastestFinger(null);
       setHotSeat(null);
+      setGameResults([]);
       setMessage(
         room.status !== "waiting"
           ? "You left after the game started, so you cannot rejoin that game."
@@ -727,6 +770,14 @@ export function FinalAnswerApp() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function returnHomeFromCompletedGame() {
+    setRoom(null);
+    setFastestFinger(null);
+    setHotSeat(null);
+    setGameResults([]);
+    setMessage("Returned home. Your completed-game stats are saved.");
   }
 
   async function startRoom() {
@@ -752,6 +803,7 @@ export function FinalAnswerApp() {
       }
 
       setRoom(data.room);
+      setGameResults([]);
       setMessage("Fastest Finger started.");
     } catch {
       setMessage("Could not start room. Try again.");
@@ -961,6 +1013,7 @@ export function FinalAnswerApp() {
         setFastestFinger(null);
         setMessage("Turn complete. Next Fastest Finger round is ready.");
       } else if (data.room?.status === "completed") {
+        loadGameResults(false);
         setMessage("Game complete.");
       } else if (data.hotSeat) {
         setMessage(`Level ${data.hotSeat.currentLevel} question loaded.`);
@@ -969,6 +1022,39 @@ export function FinalAnswerApp() {
       setMessage("Could not continue Hot Seat. Try again.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function loadGameResults(showMessage = true) {
+    if (!room?.id) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/results`);
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok) {
+        if (showMessage) {
+          showApiError(data, "Could not load final results.");
+        }
+        return;
+      }
+
+      setGameResults(data.results ?? []);
+      if (showMessage) {
+        setMessage("Final results loaded.");
+      }
+
+      const session = await fetch("/api/account/session");
+      const sessionData = (await session.json()) as ApiResponse;
+      if (sessionData.account) {
+        setAccount(sessionData.account);
+      }
+    } catch {
+      if (showMessage) {
+        setMessage("Could not load final results. Try again.");
+      }
     }
   }
 
@@ -1072,6 +1158,42 @@ export function FinalAnswerApp() {
       }
     } catch {
       setMessage("Could not report question. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitHotSeatQuestionReport() {
+    if (!room?.id || !hotSeat) {
+      setMessage("Hot Seat question is not loaded yet.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/questions/${hotSeat.question.id}/report`, {
+        body: JSON.stringify({
+          note: hotSeatReportNote,
+          reason: hotSeatReportReason,
+          roomId: room.id,
+          turnId: hotSeat.turnId,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok) {
+        showApiError(data, "Could not report this question.");
+        return;
+      }
+
+      setHotSeatReportNote("");
+      setMessage(`Question report saved. Report count: ${data.reportCount ?? 1}.`);
+    } catch {
+      setMessage("Could not report this question. Try again.");
     } finally {
       setBusy(false);
     }
@@ -1240,6 +1362,7 @@ export function FinalAnswerApp() {
                 hotSeat={hotSeat}
                 hotSeatRevealPending={hotSeatRevealPending}
                 isHost={isHost}
+                gameResults={gameResults}
                 onCancelHotSeatAnswer={() => {
                   setConfirmingHotSeatAnswer(false);
                   setSelectedHotSeatAnswer(null);
@@ -1254,7 +1377,12 @@ export function FinalAnswerApp() {
                 onLeaveRoom={leaveRoom}
                 onRefreshHotSeat={() => loadHotSeatState(true)}
                 onRefreshFastestFinger={() => loadFastestFingerState(true)}
+                onRefreshResults={() => loadGameResults(true)}
                 onRefreshRoom={() => refreshRoom(true)}
+                onReportHotSeatQuestion={submitHotSeatQuestionReport}
+                onReportHotSeatReasonChange={setHotSeatReportReason}
+                onReportHotSeatNoteChange={setHotSeatReportNote}
+                onReturnHome={returnHomeFromCompletedGame}
                 onSelectHotSeatAnswer={(answer) => {
                   setSelectedHotSeatAnswer(answer);
                   setConfirmingHotSeatAnswer(true);
@@ -1268,6 +1396,8 @@ export function FinalAnswerApp() {
                 realtimeStatus={room ? realtimeStatus : "Realtime idle"}
                 room={room}
                 selectedHotSeatAnswer={selectedHotSeatAnswer}
+                hotSeatReportNote={hotSeatReportNote}
+                hotSeatReportReason={hotSeatReportReason}
                 timerNow={timerNow}
               />
             ) : activePanel === "create-room" || activePanel === "join-room" ? (
@@ -1461,7 +1591,10 @@ function RoomLobby(props: {
   currentPlayer: RoomPlayer | undefined;
   fastestFinger: FastestFingerState | null;
   fastestFingerOrder: FastestFingerItemKey[];
+  gameResults: GameResult[];
   hotSeat: HotSeatState | null;
+  hotSeatReportNote: string;
+  hotSeatReportReason: ReportReason;
   hotSeatRevealPending: boolean;
   isHost: boolean;
   onCancelHotSeatAnswer: () => void;
@@ -1471,7 +1604,12 @@ function RoomLobby(props: {
   onLeaveRoom: () => void;
   onRefreshHotSeat: () => void;
   onRefreshFastestFinger: () => void;
+  onRefreshResults: () => void;
   onRefreshRoom: () => void;
+  onReportHotSeatNoteChange: (value: string) => void;
+  onReportHotSeatQuestion: () => void;
+  onReportHotSeatReasonChange: (value: ReportReason) => void;
+  onReturnHome: () => void;
   onSelectHotSeatAnswer: (answer: HotSeatAnswerKey) => void;
   onStartRoom: () => void;
   onSubmitFastestFinger: (order: FastestFingerItemKey[]) => void;
@@ -1577,11 +1715,16 @@ function RoomLobby(props: {
           confirmingAnswer={props.confirmingHotSeatAnswer}
           confirmingPass={props.confirmingPass}
           hotSeat={props.hotSeat}
+          reportNote={props.hotSeatReportNote}
+          reportReason={props.hotSeatReportReason}
           onCancelAnswer={props.onCancelHotSeatAnswer}
           onConfirmPass={props.onConfirmPass}
           onConfirmAnswer={props.onConfirmHotSeatAnswer}
           onContinue={props.onContinueHotSeat}
           onRefresh={props.onRefreshHotSeat}
+          onReportNoteChange={props.onReportHotSeatNoteChange}
+          onReportQuestion={props.onReportHotSeatQuestion}
+          onReportReasonChange={props.onReportHotSeatReasonChange}
           onSelectAnswer={props.onSelectHotSeatAnswer}
           onTogglePassConfirm={props.onTogglePassConfirm}
           onUseLifeline={props.onUseLifeline}
@@ -1590,16 +1733,28 @@ function RoomLobby(props: {
         />
       )}
 
-      <GameStateDebugPanel
-        activePlayerCount={activePlayers.length}
-        eligiblePlayerCount={props.room.gameState?.eligibleAccountIds.length ?? 0}
-        gameStateId={props.room.gameState?.id ?? "Not created"}
-        hostDisplayName={host?.displayName ?? "No host"}
-        realtimeStatus={props.realtimeStatus}
-        roomCode={props.room.code}
-        roomStatus={props.room.status}
-        selectedPlayerCount={props.room.selectedPlayerCount}
-      />
+      {props.room.status === "completed" && (
+        <FinalResultsPanel
+          busy={props.busy}
+          onRefresh={props.onRefreshResults}
+          onReturnHome={props.onReturnHome}
+          results={props.gameResults}
+          roomCode={props.room.code}
+        />
+      )}
+
+      {props.room.status !== "completed" && (
+        <GameStateDebugPanel
+          activePlayerCount={activePlayers.length}
+          eligiblePlayerCount={props.room.gameState?.eligibleAccountIds.length ?? 0}
+          gameStateId={props.room.gameState?.id ?? "Not created"}
+          hostDisplayName={host?.displayName ?? "No host"}
+          realtimeStatus={props.realtimeStatus}
+          roomCode={props.room.code}
+          roomStatus={props.room.status}
+          selectedPlayerCount={props.room.selectedPlayerCount}
+        />
+      )}
 
       <div className="grid gap-2 sm:grid-cols-2">
         {waiting && props.currentPlayer && (
@@ -1635,7 +1790,7 @@ function RoomLobby(props: {
         >
           Refresh Room
         </button>
-        {props.currentPlayer && (
+        {props.currentPlayer && props.room.status !== "completed" && (
           <button
             className="border border-[#ff5e5e]/70 bg-[#320f18]/85 px-4 py-3 font-black text-red-50"
             disabled={props.busy}
@@ -1857,11 +2012,16 @@ function HotSeatPanel(props: {
   confirmingAnswer: boolean;
   confirmingPass: boolean;
   hotSeat: HotSeatState | null;
+  reportNote: string;
+  reportReason: ReportReason;
   onCancelAnswer: () => void;
   onConfirmAnswer: () => void;
   onConfirmPass: () => void;
   onContinue: () => void;
   onRefresh: () => void;
+  onReportNoteChange: (value: string) => void;
+  onReportQuestion: () => void;
+  onReportReasonChange: (value: ReportReason) => void;
   onSelectAnswer: (answer: HotSeatAnswerKey) => void;
   onTogglePassConfirm: (value: boolean) => void;
   onUseLifeline: (lifeline: "5050" | "audience" | "pass") => void;
@@ -2088,6 +2248,49 @@ function HotSeatPanel(props: {
             </div>
           )}
 
+          <div className="mt-4 border border-[#244b91] bg-[#050f25] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#f6d37a]">
+                  Report question
+                </p>
+                <p className="mt-1 text-xs font-bold text-blue-100/55">
+                  Report a typo, ambiguity, or possible answer issue.
+                </p>
+              </div>
+              <button
+                className="border border-[#ff9f2f] bg-[#ff9f2f] px-3 py-2 text-sm font-black text-[#071225] disabled:cursor-not-allowed disabled:opacity-55"
+                disabled={props.busy}
+                onClick={props.onReportQuestion}
+                type="button"
+              >
+                Report
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1.3fr]">
+              <select
+                className="border border-[#244b91] bg-[#020712] px-3 py-3 text-sm font-bold text-white outline-none focus:border-[#f6d37a]"
+                onChange={(event) =>
+                  props.onReportReasonChange(event.target.value as ReportReason)
+                }
+                value={props.reportReason}
+              >
+                {reportReasons.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="border border-[#244b91] bg-[#020712] px-3 py-3 text-sm font-bold text-white outline-none placeholder:text-blue-100/32 focus:border-[#f6d37a]"
+                maxLength={240}
+                onChange={(event) => props.onReportNoteChange(event.target.value)}
+                placeholder="Optional note"
+                value={props.reportNote}
+              />
+            </div>
+          </div>
+
           {!isHotSeatPlayer && props.hotSeat.status === "awaiting_answer" && (
             <p className="mt-4 border border-[#244b91] bg-[#050f25] p-3 text-sm font-bold leading-6 text-blue-100/75">
               Waiting for {props.hotSeat.hotSeatPlayer.displayName} to lock a
@@ -2204,6 +2407,120 @@ function HotSeatPanel(props: {
             {props.hotSeat.levelsCompleted}.
           </div>
         </aside>
+      </div>
+    </div>
+  );
+}
+
+function placementLabel(place: number) {
+  const suffix =
+    place % 10 === 1 && place % 100 !== 11
+      ? "st"
+      : place % 10 === 2 && place % 100 !== 12
+        ? "nd"
+        : place % 10 === 3 && place % 100 !== 13
+          ? "rd"
+          : "th";
+
+  return `${place}${suffix}`;
+}
+
+function FinalResultsPanel(props: {
+  busy: boolean;
+  onRefresh: () => void;
+  onReturnHome: () => void;
+  results: GameResult[];
+  roomCode: string;
+}) {
+  const topResults = props.results.filter((result) => result.placement === 1);
+  const tiedTop = topResults.length > 1;
+
+  return (
+    <div className="border border-[#f6d37a]/55 bg-[#030914] p-4 shadow-[0_0_50px_rgba(246,211,122,0.16)]">
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+        Final Answer
+      </p>
+      <h3 className="mt-2 text-3xl font-black text-white">Final Results</h3>
+      <p className="mt-2 text-sm font-bold leading-6 text-blue-100/72">
+        Room {props.roomCode} is complete. Stats are saved once when the final
+        standings are created.
+      </p>
+
+      {props.results.length === 0 ? (
+        <div className="mt-4 border border-[#244b91] bg-[#061a3e] p-4">
+          <p className="text-sm font-bold text-blue-100">
+            Final standings are being prepared.
+          </p>
+          <button
+            className="mt-3 border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225]"
+            disabled={props.busy}
+            onClick={props.onRefresh}
+            type="button"
+          >
+            Load Results
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 border border-[#f6d37a]/45 bg-[#281d06] p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f6d37a]">
+              {tiedTop ? "Tied winners" : "Winner"}
+            </p>
+            <p className="mt-2 text-2xl font-black text-white">
+              {topResults.map((result) => result.displayName).join(" + ")}
+            </p>
+            <p className="mt-1 font-mono text-sm font-black text-[#f6d37a]">
+              {formatPrize(topResults[0]?.finalWinnings ?? 0)}
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            {props.results.map((result) => (
+              <div
+                className={`grid gap-3 border p-3 sm:grid-cols-[70px_1fr_auto] sm:items-center ${
+                  result.placement === 1
+                    ? "border-[#f6d37a] bg-[#0b234d]"
+                    : "border-[#244b91] bg-[#061a3e]"
+                }`}
+                key={result.accountId}
+              >
+                <div className="font-mono text-xl font-black text-[#f6d37a]">
+                  {placementLabel(result.placement)}
+                </div>
+                <div>
+                  <p className="font-black text-white">{result.displayName}</p>
+                  <p className="mt-1 text-xs font-bold text-blue-100/58">
+                    Level {result.highestLevelReached} | Correct{" "}
+                    {result.questionsAnsweredCorrectly} | Fastest Finger wins{" "}
+                    {result.fastestFingerWins}
+                  </p>
+                </div>
+                <p className="font-mono text-lg font-black text-white">
+                  {formatPrize(result.finalWinnings)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <button
+          className="border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+          disabled={props.busy}
+          onClick={props.onRefresh}
+          type="button"
+        >
+          Refresh Results
+        </button>
+        <button
+          className="border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225]"
+          disabled={props.busy}
+          onClick={props.onReturnHome}
+          type="button"
+        >
+          Return Home
+        </button>
       </div>
     </div>
   );
@@ -2566,6 +2883,22 @@ function QuestionFoundationPanel(props: {
                     {question.reportCount} | Active:{" "}
                     {question.active ? "yes" : "no"}
                   </p>
+                  {question.reports?.length ? (
+                    <div className="mt-2 grid gap-1">
+                      {question.reports.map((report) => (
+                        <p
+                          className="text-xs leading-5 text-blue-100/62"
+                          key={`${question.id}-${report.accountId}-${report.reason}-${report.createdAt}`}
+                        >
+                          <span className="font-black text-[#f6d37a]">
+                            {reportReasonLabels[report.reason]}
+                          </span>{" "}
+                          by {report.displayName}
+                          {report.note ? `: ${report.note}` : ""}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ))
             )}

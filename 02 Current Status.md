@@ -250,3 +250,32 @@ What is still not built:
 
 Next milestone:
 - Milestone 9: final results screen, rankings, stats updates, and in-game question reporting.
+
+## 2026-06-16 - Milestone 9 Final Results, Stats, and In-Game Reporting Completed
+
+Milestone 9 completes the current game loop from room start through completed results.
+
+What works now:
+- The 240 active starter Hot Seat questions are balanced across correct answers A, B, C, and D.
+- When all players complete their Hot Seat turns, the room reaches `completed`.
+- Completed rooms show a polished Final Results screen.
+- Players are ranked by final winnings.
+- Tied players share the same placement.
+- Per-player result rows are stored in `game_results`.
+- Account stats update server-side when results are finalized.
+- Stats finalization is guarded so refreshes do not double-count results.
+- Fastest Finger wins are included in final result rows and stats.
+- The Hot Seat screen includes Report Question.
+- Question reports store question id, reporter, room id, Hot Seat turn id, reason, optional note, and update report counts.
+- A player is blocked from repeatedly reporting the same Hot Seat question turn.
+- Admin report review shows reported questions, report counts, reasons, notes, and context ids.
+- The temporary game-state debug panel is hidden on the completed results screen.
+
+What is still not built:
+- The full 1,200-question bank is not built.
+- Admin editing/deactivation tools for questions are not built.
+- Chat is not built.
+- Sound effects are not built.
+
+Next milestone:
+- Milestone 10: full question bank expansion, question quality review, and admin tools.
