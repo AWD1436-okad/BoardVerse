@@ -109,6 +109,7 @@ type FastestFingerState = {
 };
 
 type HotSeatState = {
+  audiencePercentages: Record<HotSeatAnswerKey, number> | null;
   correctAnswer: HotSeatAnswerKey | null;
   currentLevel: number;
   currentPrize: number;
@@ -126,6 +127,7 @@ type HotSeatState = {
     level: number;
   }>;
   levelsCompleted: number;
+  passAvailable: boolean;
   question: {
     answerA: string;
     answerB: string;
@@ -138,6 +140,7 @@ type HotSeatState = {
     questionText: string;
   };
   questionsCorrect: number;
+  removedAnswers: HotSeatAnswerKey[];
   selectedAnswer: HotSeatAnswerKey | null;
   status:
     | "awaiting_answer"
@@ -145,6 +148,9 @@ type HotSeatState = {
     | "revealed_wrong"
     | "turn_complete";
   turnId: string;
+  used5050: boolean;
+  usedAudience: boolean;
+  usedPass: boolean;
 };
 
 type ReportedQuestion = Question & {
@@ -266,6 +272,7 @@ export function FinalAnswerApp() {
   const [selectedHotSeatAnswer, setSelectedHotSeatAnswer] =
     useState<HotSeatAnswerKey | null>(null);
   const [confirmingHotSeatAnswer, setConfirmingHotSeatAnswer] = useState(false);
+  const [confirmingPass, setConfirmingPass] = useState(false);
   const [hotSeatRevealPending, setHotSeatRevealPending] = useState(false);
   const [timerNow, setTimerTick] = useState(Date.now());
   const [question, setQuestion] = useState<Question | null>(null);
@@ -836,12 +843,14 @@ export function FinalAnswerApp() {
       setHotSeat(null);
       setSelectedHotSeatAnswer(null);
       setConfirmingHotSeatAnswer(false);
+      setConfirmingPass(false);
       return;
     }
 
     setHotSeat(state);
     setSelectedHotSeatAnswer(state.selectedAnswer ?? state.finalAnswer);
     setConfirmingHotSeatAnswer(false);
+    setConfirmingPass(false);
   }
 
   async function loadHotSeatState(showMessage = false) {
@@ -959,6 +968,51 @@ export function FinalAnswerApp() {
     } catch {
       setMessage("Could not continue Hot Seat. Try again.");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyHotSeatLifeline(lifeline: "5050" | "audience" | "pass") {
+    if (!room?.id) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}/hot-seat`, {
+        body: JSON.stringify({ action: "lifeline", lifeline }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (data.room) {
+        setRoom(data.room);
+      }
+
+      if (data.hotSeat) {
+        setLoadedHotSeat(data.hotSeat);
+      }
+
+      if (!response.ok || !data.hotSeat) {
+        showApiError(data, "Could not use lifeline.");
+        return;
+      }
+
+      if (lifeline === "5050") {
+        setMessage("50:50 removed two wrong answers.");
+      } else if (lifeline === "audience") {
+        setMessage("Audience result is in.");
+      } else {
+        setFastestFinger(null);
+        setMessage(`${data.hotSeat.hotSeatPlayer.displayName} is now in the Hot Seat.`);
+      }
+    } catch {
+      setMessage("Could not use lifeline. Try again.");
+    } finally {
+      setConfirmingPass(false);
       setBusy(false);
     }
   }
@@ -1178,6 +1232,7 @@ export function FinalAnswerApp() {
               <RoomLobby
                 account={account}
                 busy={busy}
+                confirmingPass={confirmingPass}
                 currentPlayer={currentPlayer}
                 fastestFinger={fastestFinger}
                 fastestFingerOrder={fastestFingerOrder}
@@ -1194,6 +1249,7 @@ export function FinalAnswerApp() {
                     submitHotSeatAnswer(selectedHotSeatAnswer);
                   }
                 }}
+                onConfirmPass={() => applyHotSeatLifeline("pass")}
                 onContinueHotSeat={continueHotSeat}
                 onLeaveRoom={leaveRoom}
                 onRefreshHotSeat={() => loadHotSeatState(true)}
@@ -1203,6 +1259,8 @@ export function FinalAnswerApp() {
                   setSelectedHotSeatAnswer(answer);
                   setConfirmingHotSeatAnswer(true);
                 }}
+                onTogglePassConfirm={(value) => setConfirmingPass(value)}
+                onUseLifeline={(lifeline) => applyHotSeatLifeline(lifeline)}
                 onStartRoom={startRoom}
                 onSubmitFastestFinger={submitFastestFingerOrder}
                 onUpdateFastestFingerOrder={setFastestFingerOrder}
@@ -1399,6 +1457,7 @@ function RoomLobby(props: {
   account: Account | null;
   busy: boolean;
   confirmingHotSeatAnswer: boolean;
+  confirmingPass: boolean;
   currentPlayer: RoomPlayer | undefined;
   fastestFinger: FastestFingerState | null;
   fastestFingerOrder: FastestFingerItemKey[];
@@ -1407,6 +1466,7 @@ function RoomLobby(props: {
   isHost: boolean;
   onCancelHotSeatAnswer: () => void;
   onConfirmHotSeatAnswer: () => void;
+  onConfirmPass: () => void;
   onContinueHotSeat: () => void;
   onLeaveRoom: () => void;
   onRefreshHotSeat: () => void;
@@ -1415,8 +1475,10 @@ function RoomLobby(props: {
   onSelectHotSeatAnswer: (answer: HotSeatAnswerKey) => void;
   onStartRoom: () => void;
   onSubmitFastestFinger: (order: FastestFingerItemKey[]) => void;
+  onTogglePassConfirm: (value: boolean) => void;
   onUpdateFastestFingerOrder: (order: FastestFingerItemKey[]) => void;
   onUpdateReady: (isReady: boolean) => void;
+  onUseLifeline: (lifeline: "5050" | "audience" | "pass") => void;
   realtimeStatus: string;
   room: Room;
   selectedHotSeatAnswer: HotSeatAnswerKey | null;
@@ -1513,12 +1575,16 @@ function RoomLobby(props: {
           account={props.account}
           busy={props.busy}
           confirmingAnswer={props.confirmingHotSeatAnswer}
+          confirmingPass={props.confirmingPass}
           hotSeat={props.hotSeat}
           onCancelAnswer={props.onCancelHotSeatAnswer}
+          onConfirmPass={props.onConfirmPass}
           onConfirmAnswer={props.onConfirmHotSeatAnswer}
           onContinue={props.onContinueHotSeat}
           onRefresh={props.onRefreshHotSeat}
           onSelectAnswer={props.onSelectHotSeatAnswer}
+          onTogglePassConfirm={props.onTogglePassConfirm}
+          onUseLifeline={props.onUseLifeline}
           revealPending={props.hotSeatRevealPending}
           selectedAnswer={props.selectedHotSeatAnswer}
         />
@@ -1789,12 +1855,16 @@ function HotSeatPanel(props: {
   account: Account | null;
   busy: boolean;
   confirmingAnswer: boolean;
+  confirmingPass: boolean;
   hotSeat: HotSeatState | null;
   onCancelAnswer: () => void;
   onConfirmAnswer: () => void;
+  onConfirmPass: () => void;
   onContinue: () => void;
   onRefresh: () => void;
   onSelectAnswer: (answer: HotSeatAnswerKey) => void;
+  onTogglePassConfirm: (value: boolean) => void;
+  onUseLifeline: (lifeline: "5050" | "audience" | "pass") => void;
   revealPending: boolean;
   selectedAnswer: HotSeatAnswerKey | null;
 }) {
@@ -1817,6 +1887,8 @@ function HotSeatPanel(props: {
   const isHotSeatPlayer =
     props.account?.id === props.hotSeat.hotSeatPlayer.accountId;
   const locked = props.busy || props.revealPending || props.hotSeat.status !== "awaiting_answer";
+  const canUseLifelines = isHotSeatPlayer && props.hotSeat.status === "awaiting_answer";
+  const passAvailable = props.hotSeat.passAvailable;
   const answerRows: Array<[HotSeatAnswerKey, string]> = [
     ["A", props.hotSeat.question.answerA],
     ["B", props.hotSeat.question.answerB],
@@ -1825,6 +1897,10 @@ function HotSeatPanel(props: {
   ];
 
   function answerClass(answer: HotSeatAnswerKey) {
+    if (props.hotSeat?.removedAnswers.includes(answer)) {
+      return "border-white/10 bg-[#020712] text-blue-100/28 line-through";
+    }
+
     const revealed =
       props.hotSeat?.status === "revealed_correct" ||
       props.hotSeat?.status === "revealed_wrong" ||
@@ -1885,13 +1961,86 @@ function HotSeatPanel(props: {
             {props.hotSeat.question.questionText}
           </p>
 
+          <div className="mt-5 grid gap-2 sm:grid-cols-3">
+            <button
+              className="border border-[#f6d37a]/55 bg-[#071a3d] px-3 py-3 text-sm font-black text-[#f6d37a] disabled:cursor-not-allowed disabled:border-white/10 disabled:text-blue-100/35"
+              disabled={locked || !canUseLifelines || props.hotSeat.used5050}
+              onClick={() => props.onUseLifeline("5050")}
+              type="button"
+            >
+              50:50
+            </button>
+            <button
+              className="border border-[#f6d37a]/55 bg-[#071a3d] px-3 py-3 text-sm font-black text-[#f6d37a] disabled:cursor-not-allowed disabled:border-white/10 disabled:text-blue-100/35"
+              disabled={locked || !canUseLifelines || props.hotSeat.usedAudience}
+              onClick={() => props.onUseLifeline("audience")}
+              type="button"
+            >
+              Ask The Audience
+            </button>
+            <button
+              className="border border-[#f6d37a]/55 bg-[#071a3d] px-3 py-3 text-sm font-black text-[#f6d37a] disabled:cursor-not-allowed disabled:border-white/10 disabled:text-blue-100/35"
+              disabled={
+                locked ||
+                !canUseLifelines ||
+                props.hotSeat.usedPass ||
+                !passAvailable
+              }
+              onClick={() => props.onTogglePassConfirm(true)}
+              title={
+                passAvailable
+                  ? "Use Pass"
+                  : "Pass needs another eligible player."
+              }
+              type="button"
+            >
+              Pass
+            </button>
+          </div>
+
+          {!passAvailable && isHotSeatPlayer && !props.hotSeat.usedPass && (
+            <p className="mt-2 text-xs font-bold text-blue-100/55">
+              Pass is unavailable because no other eligible player can take over.
+            </p>
+          )}
+
+          {props.confirmingPass && (
+            <div className="mt-4 border border-[#ff9f2f] bg-[#281406] p-4">
+              <p className="text-lg font-black text-white">
+                Use Pass and move to the back of the queue?
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <button
+                  className="border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225]"
+                  disabled={props.busy}
+                  onClick={props.onConfirmPass}
+                  type="button"
+                >
+                  Yes, use Pass
+                </button>
+                <button
+                  className="border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+                  disabled={props.busy}
+                  onClick={() => props.onTogglePassConfirm(false)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="mt-5 grid gap-2">
             {answerRows.map(([answer, text]) => (
               <button
                 className={`w-full border px-3 py-3 text-left font-black transition disabled:cursor-not-allowed ${answerClass(
                   answer,
                 )}`}
-                disabled={locked || !isHotSeatPlayer}
+                disabled={
+                  locked ||
+                  !isHotSeatPlayer ||
+                  props.hotSeat?.removedAnswers.includes(answer)
+                }
                 key={answer}
                 onClick={() => props.onSelectAnswer(answer)}
                 type="button"
@@ -1901,6 +2050,43 @@ function HotSeatPanel(props: {
               </button>
             ))}
           </div>
+
+          {props.hotSeat.audiencePercentages && (
+            <div className="mt-4 border border-[#f6d37a]/45 bg-[#050f25] p-4">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f6d37a]">
+                Audience result
+              </p>
+              <div className="mt-3 grid gap-2">
+                {answerRows.map(([answer]) => {
+                  const value = props.hotSeat?.audiencePercentages?.[answer] ?? 0;
+                  const removed = props.hotSeat?.removedAnswers.includes(answer);
+
+                  return (
+                    <div className="grid gap-1" key={answer}>
+                      <div className="flex items-center justify-between gap-3 text-xs font-black">
+                        <span className={removed ? "text-blue-100/35" : "text-blue-50"}>
+                          {answer}
+                        </span>
+                        <span className={removed ? "text-blue-100/35" : "text-[#f6d37a]"}>
+                          {value}%
+                        </span>
+                      </div>
+                      <div className="h-3 overflow-hidden border border-[#244b91] bg-[#020712]">
+                        <div
+                          className={`h-full ${
+                            removed
+                              ? "bg-white/10"
+                              : "bg-[linear-gradient(90deg,#244b91,#f6d37a)]"
+                          }`}
+                          style={{ width: `${value}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {!isHotSeatPlayer && props.hotSeat.status === "awaiting_answer" && (
             <p className="mt-4 border border-[#244b91] bg-[#050f25] p-3 text-sm font-bold leading-6 text-blue-100/75">

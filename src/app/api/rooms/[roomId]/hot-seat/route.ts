@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   continueHotSeat,
+  applyHotSeatLifeline,
   getHotSeatState,
   submitFinalAnswer,
   validateAnswerKey,
@@ -41,6 +42,18 @@ function hotSeatError(code: string) {
 
   if (code === "answer_required") {
     return jsonError("Lock a final answer before continuing.", 409, code);
+  }
+
+  if (code === "answer_removed") {
+    return jsonError("That answer has been removed by 50:50.", 409, code);
+  }
+
+  if (code === "lifeline_used") {
+    return jsonError("That lifeline has already been used.", 409, code);
+  }
+
+  if (code === "pass_unavailable") {
+    return jsonError("Pass is only available when another eligible player can take over.", 409, code);
   }
 
   return jsonError("Could not load Hot Seat.", 500, code);
@@ -90,6 +103,7 @@ export async function POST(
   const body = (await request.json().catch(() => null)) as {
     action?: unknown;
     answer?: unknown;
+    lifeline?: unknown;
   } | null;
   const { roomId } = await params;
 
@@ -101,6 +115,43 @@ export async function POST(
 
     if (result.error) {
       return hotSeatError(result.error);
+    }
+
+    return NextResponse.json({ hotSeat: result.state, ok: true, room: result.room });
+  }
+
+  if (body?.action === "lifeline") {
+    if (
+      body.lifeline !== "5050" &&
+      body.lifeline !== "audience" &&
+      body.lifeline !== "pass"
+    ) {
+      return jsonError("Choose a valid lifeline.", 400, "invalid_lifeline");
+    }
+
+    const result = await applyHotSeatLifeline(context.supabase!, {
+      account: context.account,
+      lifeline: body.lifeline,
+      roomId,
+    });
+
+    if (result.error) {
+      const errorResponse = hotSeatError(result.error);
+
+      if (result.state) {
+        return NextResponse.json(
+          {
+            code: result.error,
+            hotSeat: result.state,
+            message: "Hot Seat state changed.",
+            ok: false,
+            room: result.room,
+          },
+          { status: errorResponse.status },
+        );
+      }
+
+      return errorResponse;
     }
 
     return NextResponse.json({ hotSeat: result.state, ok: true, room: result.room });

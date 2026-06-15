@@ -12,6 +12,12 @@ create table if not exists public.hot_seat_turns (
   question_history uuid[] not null default '{}',
   selected_answer text,
   final_answer text,
+  used_5050 boolean not null default false,
+  used_audience boolean not null default false,
+  used_pass boolean not null default false,
+  removed_answers text[] not null default '{}',
+  audience_percentages jsonb,
+  pass_queue_snapshot jsonb,
   status text not null default 'awaiting_answer',
   is_correct boolean,
   final_winnings integer,
@@ -32,10 +38,29 @@ create table if not exists public.hot_seat_turns (
   constraint hot_seat_final_answer_check check (
     final_answer is null or final_answer in ('A', 'B', 'C', 'D')
   ),
+  constraint hot_seat_removed_answers_check check (
+    removed_answers <@ array['A', 'B', 'C', 'D']::text[]
+  ),
   constraint hot_seat_status_check check (
     status in ('awaiting_answer', 'revealed_correct', 'revealed_wrong', 'turn_complete')
   )
 );
+
+alter table public.hot_seat_turns
+  add column if not exists used_5050 boolean not null default false,
+  add column if not exists used_audience boolean not null default false,
+  add column if not exists used_pass boolean not null default false,
+  add column if not exists removed_answers text[] not null default '{}',
+  add column if not exists audience_percentages jsonb,
+  add column if not exists pass_queue_snapshot jsonb;
+
+alter table public.hot_seat_turns
+  drop constraint if exists hot_seat_removed_answers_check;
+
+alter table public.hot_seat_turns
+  add constraint hot_seat_removed_answers_check check (
+    removed_answers <@ array['A', 'B', 'C', 'D']::text[]
+  );
 
 alter table public.game_states
   add column if not exists current_hot_seat_turn_id uuid references public.hot_seat_turns(id) on delete set null;
@@ -57,7 +82,8 @@ alter table public.room_events
       'fastest_finger_winner',
       'hot_seat_question_loaded',
       'hot_seat_answer_locked',
-      'hot_seat_turn_completed'
+      'hot_seat_turn_completed',
+      'hot_seat_lifeline_used'
     )
   );
 

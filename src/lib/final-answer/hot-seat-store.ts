@@ -11,6 +11,7 @@ type HotSeatTurnStatus =
   | "turn_complete";
 
 export type PublicHotSeatState = {
+  audiencePercentages: Record<AnswerKey, number> | null;
   correctAnswer: AnswerKey | null;
   currentLevel: number;
   currentPrize: number;
@@ -23,6 +24,7 @@ export type PublicHotSeatState = {
   isCorrect: boolean | null;
   ladder: Array<{ amount: number; isCurrent: boolean; isSafetyNet: boolean; level: number }>;
   levelsCompleted: number;
+  passAvailable: boolean;
   question: {
     answerA: string;
     answerB: string;
@@ -35,9 +37,13 @@ export type PublicHotSeatState = {
     questionText: string;
   };
   questionsCorrect: number;
+  removedAnswers: AnswerKey[];
   selectedAnswer: AnswerKey | null;
   status: HotSeatTurnStatus;
   turnId: string;
+  used5050: boolean;
+  usedAudience: boolean;
+  usedPass: boolean;
 };
 
 type QuestionRow = {
@@ -77,12 +83,34 @@ type HotSeatTurnRow = {
   id: string;
   is_correct: boolean | null;
   levels_completed: number;
+  audience_percentages: Record<AnswerKey, number> | null;
+  pass_queue_snapshot: Record<string, unknown> | null;
   question_history: string[];
   questions_correct: number;
+  removed_answers: AnswerKey[];
   room_id: string;
   selected_answer: AnswerKey | null;
   status: HotSeatTurnStatus;
+  used_5050: boolean;
+  used_audience: boolean;
+  used_pass: boolean;
 };
+
+type Lifeline = "5050" | "audience" | "pass";
+
+const turnSelect =
+  "id, room_id, game_state_id, account_id, current_level, current_prize, current_question_id, question_history, selected_answer, final_answer, used_5050, used_audience, used_pass, removed_answers, audience_percentages, pass_queue_snapshot, status, is_correct, final_winnings, levels_completed, questions_correct, answered_at, completed_at";
+
+function normalizeTurn(turn: HotSeatTurnRow): HotSeatTurnRow {
+  return {
+    ...turn,
+    audience_percentages: normalizeAudiencePercentages(turn.audience_percentages),
+    removed_answers: normalizeAnswerArray(turn.removed_answers),
+    used_5050: Boolean(turn.used_5050),
+    used_audience: Boolean(turn.used_audience),
+    used_pass: Boolean(turn.used_pass),
+  };
+}
 
 export function validateAnswerKey(value: unknown) {
   if (value === "A" || value === "B" || value === "C" || value === "D") {
@@ -115,6 +143,107 @@ function ladder(currentLevel: number) {
     isSafetyNet: amount === 1000 || amount === 32000,
     level: index + 1,
   }));
+}
+
+function answerKeys() {
+  return ["A", "B", "C", "D"] as const;
+}
+
+function randomInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffle<T>(items: T[]) {
+  return [...items].sort(() => Math.random() - 0.5);
+}
+
+function normalizeAnswerArray(value: unknown): AnswerKey[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is AnswerKey =>
+    item === "A" || item === "B" || item === "C" || item === "D",
+  );
+}
+
+function normalizeAudiencePercentages(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Partial<Record<AnswerKey, unknown>>;
+  return answerKeys().reduce(
+    (result, answer) => ({
+      ...result,
+      [answer]: Number(record[answer] ?? 0),
+    }),
+    {} as Record<AnswerKey, number>,
+  );
+}
+
+function splitRemaining(total: number, answers: AnswerKey[]) {
+  if (answers.length === 0) {
+    return {};
+  }
+
+  if (answers.length === 1) {
+    return { [answers[0]]: total } as Partial<Record<AnswerKey, number>>;
+  }
+
+  const weights = answers.map(() => randomInt(1, 9));
+  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
+  let remaining = total;
+
+  return answers.reduce((result, answer, index) => {
+    const value =
+      index === answers.length - 1
+        ? remaining
+        : Math.max(0, Math.round((total * weights[index]) / weightTotal));
+
+    remaining -= value;
+    return { ...result, [answer]: value };
+  }, {} as Partial<Record<AnswerKey, number>>);
+}
+
+function generateAudiencePercentages(
+  question: QuestionRow,
+  input: { removedAnswers: AnswerKey[] },
+) {
+  const visibleAnswers = answerKeys().filter(
+    (answer) => !input.removedAnswers.includes(answer),
+  );
+  const wrongVisible = visibleAnswers.filter(
+    (answer) => answer !== question.correct_answer,
+  );
+  const shouldFavorCorrect = Math.random() < 0.82;
+  const range =
+    question.level <= 3
+      ? [70, 95]
+      : question.level <= 7
+        ? [45, 75]
+        : [25, 60];
+  const correctShare =
+    visibleAnswers.includes(question.correct_answer) && shouldFavorCorrect
+      ? randomInt(range[0], range[1])
+      : randomInt(
+          Math.max(12, Math.min(range[0], 25)),
+          Math.max(20, Math.min(range[1], 55)),
+        );
+  const clampedCorrect = Math.min(100, Math.max(0, correctShare));
+  const wrongShares = splitRemaining(100 - clampedCorrect, wrongVisible);
+
+  return answerKeys().reduce(
+    (result, answer) => ({
+      ...result,
+      [answer]: input.removedAnswers.includes(answer)
+        ? 0
+        : answer === question.correct_answer
+          ? clampedCorrect
+          : wrongShares[answer] ?? 0,
+    }),
+    {} as Record<AnswerKey, number>,
+  );
 }
 
 async function fetchGameState(supabase: SupabaseClient, roomId: string) {
@@ -181,9 +310,7 @@ async function pickQuestion(
 async function fetchTurn(supabase: SupabaseClient, turnId: string) {
   const { data, error } = await supabase
     .from("hot_seat_turns")
-    .select(
-      "id, room_id, game_state_id, account_id, current_level, current_prize, current_question_id, question_history, selected_answer, final_answer, status, is_correct, final_winnings, levels_completed, questions_correct, answered_at, completed_at",
-    )
+    .select(turnSelect)
     .eq("id", turnId)
     .maybeSingle();
 
@@ -191,7 +318,7 @@ async function fetchTurn(supabase: SupabaseClient, turnId: string) {
     throw error;
   }
 
-  return data as HotSeatTurnRow | null;
+  return data ? normalizeTurn(data as HotSeatTurnRow) : null;
 }
 
 async function fetchActiveTurn(
@@ -200,9 +327,7 @@ async function fetchActiveTurn(
 ) {
   const { data, error } = await supabase
     .from("hot_seat_turns")
-    .select(
-      "id, room_id, game_state_id, account_id, current_level, current_prize, current_question_id, question_history, selected_answer, final_answer, status, is_correct, final_winnings, levels_completed, questions_correct, answered_at, completed_at",
-    )
+    .select(turnSelect)
     .eq("game_state_id", input.gameStateId)
     .eq("account_id", input.accountId)
     .neq("status", "turn_complete")
@@ -214,16 +339,23 @@ async function fetchActiveTurn(
     throw error;
   }
 
-  return data as HotSeatTurnRow | null;
+  return data ? normalizeTurn(data as HotSeatTurnRow) : null;
 }
 
 async function createTurn(
   supabase: SupabaseClient,
-  input: { accountId: string; gameState: GameStateRow; roomId: string },
+  input: {
+    accountId: string;
+    excludeQuestionIds?: string[];
+    gameState: GameStateRow;
+    level?: number;
+    roomId: string;
+  },
 ) {
+  const level = input.level ?? 1;
   const question = await pickQuestion(supabase, {
-    excludeQuestionIds: [],
-    level: 1,
+    excludeQuestionIds: input.excludeQuestionIds ?? [],
+    level,
   });
 
   if (!question) {
@@ -235,8 +367,8 @@ async function createTurn(
     .from("hot_seat_turns")
     .insert({
       account_id: input.accountId,
-      current_level: 1,
-      current_prize: prizeForLevel(1),
+      current_level: level,
+      current_prize: prizeForLevel(level),
       current_question_id: question.id,
       game_state_id: input.gameState.id,
       question_history: [question.id],
@@ -244,9 +376,7 @@ async function createTurn(
       status: "awaiting_answer",
       updated_at: now,
     })
-    .select(
-      "id, room_id, game_state_id, account_id, current_level, current_prize, current_question_id, question_history, selected_answer, final_answer, status, is_correct, final_winnings, levels_completed, questions_correct, answered_at, completed_at",
-    )
+    .select(turnSelect)
     .single();
 
   if (error) {
@@ -268,11 +398,11 @@ async function createTurn(
   await emitRoomEvent(supabase, {
     actorAccountId: input.accountId,
     eventType: "hot_seat_question_loaded",
-    payload: { level: 1, turnId: turn.id },
+      payload: { level, turnId: turn.id },
     roomId: input.roomId,
   });
 
-  return turn as HotSeatTurnRow;
+  return normalizeTurn(turn as HotSeatTurnRow);
 }
 
 async function ensureTurn(supabase: SupabaseClient, roomId: string) {
@@ -320,7 +450,7 @@ async function ensureTurn(supabase: SupabaseClient, roomId: string) {
 
 async function publicState(
   supabase: SupabaseClient,
-  input: { turn: HotSeatTurnRow },
+  input: { gameState?: GameStateRow; turn: HotSeatTurnRow },
 ): Promise<PublicHotSeatState> {
   const question = await fetchQuestion(supabase, input.turn.current_question_id);
   const { data: account, error } = await supabase
@@ -339,6 +469,7 @@ async function publicState(
     input.turn.status === "turn_complete";
 
   return {
+    audiencePercentages: input.turn.audience_percentages,
     correctAnswer: revealed ? question.correct_answer : null,
     currentLevel: input.turn.current_level,
     currentPrize: input.turn.current_prize,
@@ -351,6 +482,11 @@ async function publicState(
     isCorrect: input.turn.is_correct,
     ladder: ladder(input.turn.current_level),
     levelsCompleted: input.turn.levels_completed,
+    passAvailable: input.gameState
+      ? input.gameState.eligible_account_ids.filter(
+          (accountId) => accountId !== input.turn.account_id,
+        ).length > 0
+      : false,
     question: {
       answerA: question.answer_a,
       answerB: question.answer_b,
@@ -363,9 +499,13 @@ async function publicState(
       questionText: question.question_text,
     },
     questionsCorrect: input.turn.questions_correct,
+    removedAnswers: input.turn.removed_answers,
     selectedAnswer: input.turn.selected_answer,
     status: input.turn.status,
     turnId: input.turn.id,
+    used5050: input.turn.used_5050,
+    usedAudience: input.turn.used_audience,
+    usedPass: input.turn.used_pass,
   };
 }
 
@@ -389,7 +529,7 @@ export async function getHotSeatState(
 
   return {
     error: null,
-    state: await publicState(supabase, { turn: result.turn }),
+    state: await publicState(supabase, { gameState: result.gameState, turn: result.turn }),
   };
 }
 
@@ -410,7 +550,14 @@ export async function submitFinalAnswer(
   if (result.turn.status !== "awaiting_answer") {
     return {
       error: "answer_locked" as const,
-      state: await publicState(supabase, { turn: result.turn }),
+      state: await publicState(supabase, { gameState: result.gameState, turn: result.turn }),
+    };
+  }
+
+  if (result.turn.removed_answers.includes(input.answer)) {
+    return {
+      error: "answer_removed" as const,
+      state: await publicState(supabase, { gameState: result.gameState, turn: result.turn }),
     };
   }
 
@@ -450,9 +597,7 @@ export async function submitFinalAnswer(
       updated_at: now,
     })
     .eq("id", result.turn.id)
-    .select(
-      "id, room_id, game_state_id, account_id, current_level, current_prize, current_question_id, question_history, selected_answer, final_answer, status, is_correct, final_winnings, levels_completed, questions_correct, answered_at, completed_at",
-    )
+    .select(turnSelect)
     .single();
 
   if (error) {
@@ -468,7 +613,321 @@ export async function submitFinalAnswer(
 
   return {
     error: null,
-    state: await publicState(supabase, { turn: turn as HotSeatTurnRow }),
+    state: await publicState(supabase, { gameState: result.gameState, turn: normalizeTurn(turn as HotSeatTurnRow) }),
+  };
+}
+
+async function reloadTurn(supabase: SupabaseClient, turnId: string) {
+  const turn = await fetchTurn(supabase, turnId);
+
+  if (!turn) {
+    throw new Error("Hot Seat turn disappeared during update.");
+  }
+
+  return turn;
+}
+
+async function replaceTurnQuestion(
+  supabase: SupabaseClient,
+  input: { level: number; turn: HotSeatTurnRow },
+) {
+  const nextQuestion = await pickQuestion(supabase, {
+    excludeQuestionIds: input.turn.question_history,
+    level: input.level,
+  });
+
+  if (!nextQuestion) {
+    return { error: "question_bank_empty" as const, turn: null };
+  }
+
+  const { data: turn, error } = await supabase
+    .from("hot_seat_turns")
+    .update({
+      answered_at: null,
+      audience_percentages: null,
+      current_level: input.level,
+      current_prize: prizeForLevel(input.level),
+      current_question_id: nextQuestion.id,
+      final_answer: null,
+      final_winnings: null,
+      is_correct: null,
+      question_history: [...input.turn.question_history, nextQuestion.id],
+      removed_answers: [],
+      selected_answer: null,
+      status: "awaiting_answer",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.turn.id)
+    .select(turnSelect)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return { error: null, turn: normalizeTurn(turn as HotSeatTurnRow) };
+}
+
+async function findOrCreateTurnForAccount(
+  supabase: SupabaseClient,
+  input: {
+    accountId: string;
+    gameState: GameStateRow;
+    level: number;
+    roomId: string;
+  },
+) {
+  const existing = await fetchActiveTurn(supabase, {
+    accountId: input.accountId,
+    gameStateId: input.gameState.id,
+  });
+
+  if (existing) {
+    return { error: null, turn: existing };
+  }
+
+  const turn = await createTurn(supabase, {
+    accountId: input.accountId,
+    gameState: input.gameState,
+    level: input.level,
+    roomId: input.roomId,
+  });
+
+  if (!turn) {
+    return { error: "question_bank_empty" as const, turn: null };
+  }
+
+  return { error: null, turn };
+}
+
+export async function applyHotSeatLifeline(
+  supabase: SupabaseClient,
+  input: { account: PublicAccount; lifeline: Lifeline; roomId: string },
+) {
+  const result = await ensureTurn(supabase, input.roomId);
+
+  if (result.error) {
+    return { error: result.error, room: null, state: null };
+  }
+
+  if (result.turn.account_id !== input.account.id) {
+    return { error: "not_hot_seat_player" as const, room: null, state: null };
+  }
+
+  if (result.turn.status !== "awaiting_answer") {
+    return {
+      error: "answer_locked" as const,
+      room: null,
+      state: await publicState(supabase, { gameState: result.gameState, turn: result.turn }),
+    };
+  }
+
+  const question = await fetchQuestion(supabase, result.turn.current_question_id);
+  const now = new Date().toISOString();
+
+  if (input.lifeline === "5050") {
+    if (result.turn.used_5050) {
+      return {
+        error: "lifeline_used" as const,
+        room: null,
+        state: await publicState(supabase, { gameState: result.gameState, turn: result.turn }),
+      };
+    }
+
+    const wrongAnswers = answerKeys().filter(
+      (answer) => answer !== question.correct_answer,
+    );
+    const keptWrong = shuffle(wrongAnswers)[0];
+    const removedAnswers = wrongAnswers.filter((answer) => answer !== keptWrong);
+    const audiencePercentages = result.turn.used_audience
+      ? generateAudiencePercentages(question, { removedAnswers })
+      : result.turn.audience_percentages;
+    const { data: turn, error } = await supabase
+      .from("hot_seat_turns")
+      .update({
+        audience_percentages: audiencePercentages,
+        removed_answers: removedAnswers,
+        selected_answer: removedAnswers.includes(result.turn.selected_answer as AnswerKey)
+          ? null
+          : result.turn.selected_answer,
+        updated_at: now,
+        used_5050: true,
+      })
+      .eq("id", result.turn.id)
+      .select(turnSelect)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    await emitRoomEvent(supabase, {
+      actorAccountId: input.account.id,
+      eventType: "hot_seat_lifeline_used",
+      payload: { lifeline: "5050", turnId: result.turn.id },
+      roomId: input.roomId,
+    });
+
+    return {
+      error: null,
+      room: await getRoom(supabase, input.roomId),
+      state: await publicState(supabase, {
+        gameState: result.gameState,
+        turn: normalizeTurn(turn as HotSeatTurnRow),
+      }),
+    };
+  }
+
+  if (input.lifeline === "audience") {
+    if (result.turn.used_audience) {
+      return {
+        error: "lifeline_used" as const,
+        room: null,
+        state: await publicState(supabase, { gameState: result.gameState, turn: result.turn }),
+      };
+    }
+
+    const audiencePercentages = generateAudiencePercentages(question, {
+      removedAnswers: result.turn.removed_answers,
+    });
+    const { data: turn, error } = await supabase
+      .from("hot_seat_turns")
+      .update({
+        audience_percentages: audiencePercentages,
+        updated_at: now,
+        used_audience: true,
+      })
+      .eq("id", result.turn.id)
+      .select(turnSelect)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    await emitRoomEvent(supabase, {
+      actorAccountId: input.account.id,
+      eventType: "hot_seat_lifeline_used",
+      payload: { lifeline: "audience", turnId: result.turn.id },
+      roomId: input.roomId,
+    });
+
+    return {
+      error: null,
+      room: await getRoom(supabase, input.roomId),
+      state: await publicState(supabase, {
+        gameState: result.gameState,
+        turn: normalizeTurn(turn as HotSeatTurnRow),
+      }),
+    };
+  }
+
+  if (result.turn.used_pass) {
+    return {
+      error: "lifeline_used" as const,
+      room: null,
+      state: await publicState(supabase, { gameState: result.gameState, turn: result.turn }),
+    };
+  }
+
+  const remainingQueue = result.gameState.eligible_account_ids.filter(
+    (accountId) => accountId !== result.turn.account_id,
+  );
+
+  if (remainingQueue.length === 0) {
+    return {
+      error: "pass_unavailable" as const,
+      room: null,
+      state: await publicState(supabase, { gameState: result.gameState, turn: result.turn }),
+    };
+  }
+
+  const refreshedPasser = await replaceTurnQuestion(supabase, {
+    level: result.turn.current_level,
+    turn: {
+      ...result.turn,
+      used_pass: true,
+    },
+  });
+
+  if (refreshedPasser.error || !refreshedPasser.turn) {
+    return { error: refreshedPasser.error, room: null, state: null };
+  }
+
+  const { error: passUpdateError } = await supabase
+    .from("hot_seat_turns")
+    .update({
+      pass_queue_snapshot: {
+        after: [...remainingQueue, result.turn.account_id],
+        before: result.gameState.eligible_account_ids,
+        passedAt: now,
+      },
+      updated_at: now,
+      used_pass: true,
+    })
+    .eq("id", refreshedPasser.turn.id);
+
+  if (passUpdateError) {
+    throw passUpdateError;
+  }
+
+  const nextAccountId = remainingQueue[0];
+  const nextTurnResult = await findOrCreateTurnForAccount(supabase, {
+    accountId: nextAccountId,
+    gameState: result.gameState,
+    level: result.turn.current_level,
+    roomId: input.roomId,
+  });
+
+  if (nextTurnResult.error || !nextTurnResult.turn) {
+    return { error: nextTurnResult.error, room: null, state: null };
+  }
+
+  const nextQueue = [...remainingQueue, result.turn.account_id];
+  const { error: gameStateError } = await supabase
+    .from("game_states")
+    .update({
+      current_hot_seat_turn_id: nextTurnResult.turn.id,
+      eligible_account_ids: nextQueue,
+      hot_seat_account_id: nextAccountId,
+      updated_at: now,
+    })
+    .eq("id", result.gameState.id);
+
+  if (gameStateError) {
+    throw gameStateError;
+  }
+
+  await emitRoomEvent(supabase, {
+    actorAccountId: input.account.id,
+    eventType: "hot_seat_lifeline_used",
+    payload: {
+      lifeline: "pass",
+      nextAccountId,
+      queue: nextQueue,
+      turnId: result.turn.id,
+    },
+    roomId: input.roomId,
+  });
+  await emitRoomEvent(supabase, {
+    actorAccountId: nextAccountId,
+    eventType: "hot_seat_question_loaded",
+    payload: { level: nextTurnResult.turn.current_level, turnId: nextTurnResult.turn.id },
+    roomId: input.roomId,
+  });
+
+  return {
+    error: null,
+    room: await getRoom(supabase, input.roomId),
+    state: await publicState(supabase, {
+      gameState: {
+        ...result.gameState,
+        current_hot_seat_turn_id: nextTurnResult.turn.id,
+        eligible_account_ids: nextQueue,
+        hot_seat_account_id: nextAccountId,
+      },
+      turn: await reloadTurn(supabase, nextTurnResult.turn.id),
+    }),
   };
 }
 
@@ -624,15 +1083,15 @@ export async function continueHotSeat(
         final_answer: null,
         final_winnings: null,
         is_correct: null,
+        audience_percentages: null,
         question_history: [...result.turn.question_history, nextQuestion.id],
+        removed_answers: [],
         selected_answer: null,
         status: "awaiting_answer",
         updated_at: now,
       })
       .eq("id", result.turn.id)
-      .select(
-        "id, room_id, game_state_id, account_id, current_level, current_prize, current_question_id, question_history, selected_answer, final_answer, status, is_correct, final_winnings, levels_completed, questions_correct, answered_at, completed_at",
-      )
+      .select(turnSelect)
       .single();
 
     if (error) {
@@ -649,7 +1108,7 @@ export async function continueHotSeat(
     return {
       error: null,
       room: await getRoom(supabase, input.roomId),
-      state: await publicState(supabase, { turn: turn as HotSeatTurnRow }),
+      state: await publicState(supabase, { gameState: result.gameState, turn: normalizeTurn(turn as HotSeatTurnRow) }),
     };
   }
 
@@ -665,3 +1124,4 @@ export async function continueHotSeat(
     state: null,
   };
 }
+

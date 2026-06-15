@@ -254,7 +254,8 @@ export async function emitRoomEvent(
       | "fastest_finger_winner"
       | "hot_seat_question_loaded"
       | "hot_seat_answer_locked"
-      | "hot_seat_turn_completed";
+      | "hot_seat_turn_completed"
+      | "hot_seat_lifeline_used";
     payload?: Record<string, unknown>;
     roomId: string;
   },
