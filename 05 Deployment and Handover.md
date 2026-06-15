@@ -13,7 +13,7 @@ The previous PlayGrid board-game product is retired and can be replaced.
 - Hosting: Vercel.
 - Vercel project currently linked as `boardverse`.
 - GitHub remote: `https://github.com/AWD1436-okad/BoardVerse.git`.
-- Current public app: Final Answer through Milestone 7 Hot Seat Core Gameplay.
+- Current public app: Final Answer through Milestone 8 Lifelines.
 
 ## How To Run Locally
 
@@ -175,6 +175,23 @@ Hot Seat setup:
 4. Confirm `room_events` accepts Hot Seat event types.
 5. Redeploy the Vercel production app.
 
+Milestone 8 lifeline data is also defined in:
+- `supabase/final-answer-hot-seat-schema.sql`
+
+Lifeline fields:
+- `hot_seat_turns.used_5050`
+- `hot_seat_turns.used_audience`
+- `hot_seat_turns.used_pass`
+- `hot_seat_turns.removed_answers`
+- `hot_seat_turns.audience_percentages`
+- `hot_seat_turns.pass_queue_snapshot`
+
+Lifeline behavior:
+- 50:50 is calculated server-side, stores removed answer keys, and blocks removed answers from being selected.
+- Ask The Audience is generated server-side with fake percentages only.
+- Pass rotates the eligible player queue server-side and does not mark the passing player as complete.
+- Browsers see lifeline effects through the existing room event refresh flow.
+
 Important:
 - Do not paste Supabase keys into chat.
 - Do not put Supabase keys into code.
@@ -201,8 +218,11 @@ Standard production flow:
 - Milestone 5 realtime game-state foundation is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 6 Fastest Finger First is implemented, deployed, connected to Supabase, seeded, and production-verified.
 - Milestone 7 Hot Seat Core Gameplay is implemented, deployed, connected to Supabase, and production-verified.
-- No chat, lifelines, final rankings, or gameplay stats updates exist yet.
+- Milestone 8 Lifelines is implemented, deployed, connected to Supabase, and production-verified.
+- No chat, final rankings, gameplay stats updates, or in-game Hot Seat question reporting exist yet.
 - Starting a room now creates a `game_states` record, starts Fastest Finger, moves the winner to `hot_seat`, and plays through hot-seat turns until the room is `completed`.
+- Hot Seat players can now use 50:50, Ask The Audience, and Pass.
 - Full 1,200-question generation/import process still needs implementation and review.
+- The starter Hot Seat question set currently has all correct answers as answer A and should be balanced before broader family use.
 - The temporary game-state debug panel should be removed or hidden before final launch.
 - Start Game should eventually become a single Postgres transaction/function to reduce partial-update risk.

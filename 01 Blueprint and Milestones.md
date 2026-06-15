@@ -149,16 +149,29 @@ Implementation note:
 - When eligible players remain, the room returns to `fastest_finger`; when nobody remains, the room moves to `completed`.
 - Lifelines are intentionally not included in this milestone.
 
-### Milestone 8 - Lifelines
+### Milestone 8 - Lifelines - Completed 2026-06-16
 
 - 50:50.
 - Ask The Audience generated percentages.
 - Pass queue behavior.
 
-### Milestone 9 - Results, Stats, Polish, Deployment
+Implementation note:
+- Added server-owned lifeline state to `hot_seat_turns`: `used_5050`, `used_audience`, `used_pass`, `removed_answers`, `audience_percentages`, and pass queue snapshots.
+- 50:50 is decided server-side, keeps the correct answer plus one wrong answer, and blocks removed answers from being selected.
+- Ask The Audience is generated server-side, totals 100%, becomes less reliable on higher levels, and respects answers already removed by 50:50.
+- Pass is server-owned, consumes the player's Pass lifeline, moves that player to the back of the eligible queue, gives the next eligible player a new question at the same level, and keeps the passing player's progress/lifeline state for later.
+- Lifeline changes emit room events so other players refresh into the same state.
+- Correct answers and Fastest Finger correct order remain server-side before reveal.
+
+### Milestone 9 - Final Results, Stats, and Question Reporting in Gameplay
 
 - Ranking with tied places.
 - Stats updates.
+- In-game question reporting from the Hot Seat screen.
+- End-results screen.
+
+### Milestone 10 - Polish, Deployment, and Handover
+
 - Premium responsive quiz-show UI.
 - Dramatic timer animation.
 - Browser testing of core flows.

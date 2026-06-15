@@ -221,3 +221,32 @@ What is still not built:
 
 Next milestone:
 - Milestone 8: 50:50, Ask The Audience, and Pass lifelines.
+
+## 2026-06-16 - Milestone 8 Lifelines Completed
+
+Milestone 8 has added the three planned Hot Seat lifelines.
+
+What works now:
+- Each hot-seat player has one 50:50, one Ask The Audience, and one Pass per hot-seat run.
+- Used lifelines stay used for that player's turn.
+- 50:50 removes exactly two wrong answers server-side.
+- Removed 50:50 answers are visually disabled and cannot be selected through the API.
+- Ask The Audience generates fake server-side percentages that total 100.
+- Ask The Audience respects 50:50: removed answers show 0%.
+- 50:50 still works after Ask The Audience and recalculates removed answers to 0%.
+- High-level Ask The Audience is less confident than low-level questions.
+- Pass moves the current player to the back of the eligible queue and brings the next eligible player into the Hot Seat with a new question at the same level.
+- Pass is blocked when no other eligible player is available.
+- Lifeline effects sync through the existing room event/reload flow.
+- Correct answers are still not exposed before reveal.
+
+What is still not built:
+- Final results/rankings with tied places.
+- Gameplay stats updates.
+- In-game question reporting on the Hot Seat screen.
+- Chat.
+- Full 1,200-question dataset.
+- The temporary game-state debug panel is still visible.
+
+Next milestone:
+- Milestone 9: final results screen, rankings, stats updates, and in-game question reporting.

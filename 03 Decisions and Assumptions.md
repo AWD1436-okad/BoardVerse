@@ -51,7 +51,13 @@
 - Keep Hot Seat progression manual after a reveal: the hot-seat player presses Continue/Next Question so everyone can see the reveal state before the game moves on.
 - Apply safety nets from completed levels: fewer than 3 completed levels pays `$0`, 3-6 completed levels pays `$1,000`, and 7 or more completed levels pays `$32,000`.
 - Return to Fastest Finger after a completed turn when eligible players remain. Mark completed players in game state so they cannot compete again.
-- Defer lifelines to Milestone 8.
+- Track Hot Seat lifelines per turn with server-owned fields: `used_5050`, `used_audience`, `used_pass`, `removed_answers`, `audience_percentages`, and pass queue snapshots.
+- Keep all lifeline decisions server-side. The browser can request a lifeline, but it cannot choose 50:50 removed answers, generate audience percentages, or decide Pass queue movement.
+- 50:50 keeps the correct answer and one random wrong answer, then stores the two removed answer keys.
+- Ask The Audience uses fake generated percentages only. Low levels are more confident, middle levels are mixed, and high levels are less reliable.
+- If Ask The Audience and 50:50 are both used, removed answers show 0% and the visible answers still total 100%.
+- Pass does not mark the passing player complete. It moves them to the back of the eligible queue, preserves their progress and used lifelines, and gives the next eligible player a new question at the same level.
+- Pass is unavailable when there is no other eligible player.
 
 ## Open Risks
 
@@ -64,3 +70,5 @@
 - Starter questions are suitable for system testing but still need owner review before heavy family use.
 - Fastest Finger starter questions are suitable for gameplay testing, but should still be reviewed and expanded before broad family use.
 - Hot Seat turn advancement currently uses sequential server operations rather than one transaction. This is acceptable for the private MVP but should eventually move into a Postgres function for stronger consistency.
+- The current starter Hot Seat question set has all correct answers stored as answer A. This is acceptable for proving the system but should be balanced before broader family play.
+- Lifeline updates currently use sequential server operations rather than one transaction. This is acceptable for the private MVP, but 50:50, Pass, and reveal transitions should eventually move into Postgres functions for stronger consistency under simultaneous clicks.

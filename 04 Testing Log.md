@@ -437,3 +437,50 @@ Known limits:
 - Gameplay stats updates are not built yet.
 - Hot-seat question reporting UI is not yet attached to the gameplay screen.
 - Hot-seat server updates are sequential rather than one database transaction.
+
+## 2026-06-16 - Milestone 8 Lifelines
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Database actions:
+- Applied the Milestone 8 Hot Seat lifeline schema to Supabase project `chhdhlmnlocxwgqdqfip`.
+- Added lifeline fields to `hot_seat_turns`: `used_5050`, `used_audience`, `used_pass`, `removed_answers`, `audience_percentages`, and `pass_queue_snapshot`.
+- Extended `room_events` to allow `hot_seat_lifeline_used`.
+- Requested a PostgREST schema reload through the migration SQL.
+
+Production API tests at `https://playsgrid.org`:
+- Created temporary test accounts and private rooms.
+- Started rooms, completed Fastest Finger, and entered Hot Seat.
+- Verified Fastest Finger public API responses do not expose `correct_order` or `correctOrder`.
+- Verified Hot Seat public API responses do not expose `correctAnswer` before reveal.
+- Verified 50:50 removes exactly two answers.
+- Verified 50:50 cannot be used twice.
+- Verified removed answers cannot be selected and return `409 answer_removed`.
+- Verified Ask The Audience after 50:50 returns percentages totaling 100 and removed answers at 0%.
+- Verified Ask The Audience cannot be used twice.
+- Verified another player sees the 50:50 and Ask The Audience effects through refreshed room state.
+- Verified Pass moves the hot-seat player to the back of the eligible queue.
+- Verified Pass brings the next eligible player into the Hot Seat at the same level with a new question.
+- Verified Ask The Audience first, then 50:50 works and keeps removed answers at 0%.
+- Verified high-level Ask The Audience at level 8 returned a less-confident correct-answer percentage within the intended 25-60 range.
+- Verified Pass is blocked with `409 pass_unavailable` when no other eligible player can take over.
+
+Production browser/UI checks:
+- Initial Playwright screenshot checks failed because the local Playwright Chromium runtime was missing.
+- Installed the Playwright Chromium runtime.
+- `npx.cmd playwright screenshot --full-page https://playsgrid.org tmp-final-answer-lifelines-desktop.png` - passed.
+- `npx.cmd playwright screenshot --viewport-size=390,844 --full-page https://playsgrid.org tmp-final-answer-lifelines-mobile.png` - passed.
+- Desktop screenshot showed Final Answer branding, account form, Fastest Finger preview, prize ladder, and Three Lifelines content without obvious overlap.
+- Mobile screenshot showed the page stacked correctly with no horizontal overflow or obvious overlap.
+- Temporary screenshots were removed after inspection.
+
+Known limits:
+- Final rankings and gameplay stats updates are intentionally not built yet.
+- In-game question reporting is intentionally left for Milestone 9.
+- Chat is not built.
+- The full 1,200-question set is not built.
+- The starter Hot Seat question bank currently has all correct answers as answer A and should be balanced before broader family use.
