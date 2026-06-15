@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 type Panel = "signup" | "login" | "create-room" | "join-room";
 type RoomStatus = "waiting" | "in_game" | "completed";
+type ReportReason = "wrong_answer" | "ambiguous_wording" | "typo" | "other";
 
 type AccountStats = {
   fastestFingerWins: number;
@@ -19,6 +20,7 @@ type Account = {
   createdAt: string;
   displayName: string;
   id: string;
+  isAdmin: boolean;
   stats: AccountStats;
   username: string;
 };
@@ -46,6 +48,25 @@ type Room = {
   status: RoomStatus;
 };
 
+type Question = {
+  answerA: string;
+  answerB: string;
+  answerC: string;
+  answerD: string;
+  category: string;
+  id: string;
+  level: number;
+  prizeAmount: number;
+  questionText: string;
+};
+
+type ReportedQuestion = Question & {
+  active: boolean;
+  correctAnswer: string;
+  createdAt: string;
+  reportCount: number;
+};
+
 type ApiResponse = {
   account?: Account | null;
   code?: string;
@@ -53,6 +74,10 @@ type ApiResponse = {
   message?: string;
   missing?: string[];
   ok: boolean;
+  prizeAmount?: number;
+  question?: Question | null;
+  questions?: ReportedQuestion[];
+  reportCount?: number;
   room?: Room | null;
 };
 
@@ -106,6 +131,13 @@ const statLabels: Array<[keyof AccountStats, string]> = [
   ["questionsAnsweredCorrectly", "Correct answers"],
 ];
 
+const reportReasons: Array<[ReportReason, string]> = [
+  ["wrong_answer", "Wrong answer"],
+  ["ambiguous_wording", "Ambiguous wording"],
+  ["typo", "Typo"],
+  ["other", "Other"],
+];
+
 function formatStat(key: keyof AccountStats, value: number) {
   if (key === "highestPrizeWon" || key === "totalMoneyWon") {
     return `$${value.toLocaleString()}`;
@@ -130,6 +162,10 @@ export function FinalAnswerApp() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
+  const [question, setQuestion] = useState<Question | null>(null);
+  const [reportedQuestions, setReportedQuestions] = useState<ReportedQuestion[]>(
+    [],
+  );
 
   const [signupUsername, setSignupUsername] = useState("");
   const [signupDisplayName, setSignupDisplayName] = useState("");
@@ -139,6 +175,9 @@ export function FinalAnswerApp() {
   const [displayNameDraft, setDisplayNameDraft] = useState("");
   const [roomPlayerCount, setRoomPlayerCount] = useState(2);
   const [joinCode, setJoinCode] = useState("");
+  const [questionLevel, setQuestionLevel] = useState(1);
+  const [reportReason, setReportReason] =
+    useState<ReportReason>("wrong_answer");
 
   const stats = account?.stats ?? emptyStats;
   const joinedDate = account?.createdAt
@@ -525,6 +564,93 @@ export function FinalAnswerApp() {
     }
   }
 
+  async function loadQuestion() {
+    if (!account) {
+      setMessage("You must be logged in to load a question.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/questions/random?level=${questionLevel}`);
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !data.question) {
+        showApiError(data, "Could not load a question.");
+        return;
+      }
+
+      setQuestion(data.question);
+      setMessage(`Loaded level ${data.question.level} question.`);
+    } catch {
+      setMessage("Could not load a question. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitQuestionReport() {
+    if (!question) {
+      setMessage("Load a question before reporting.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/questions/${question.id}/report`, {
+        body: JSON.stringify({ reason: reportReason }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok) {
+        showApiError(data, "Could not report question.");
+        return;
+      }
+
+      setMessage(`Question report saved. Report count: ${data.reportCount ?? 1}.`);
+      if (account?.isAdmin) {
+        loadAdminReports();
+      }
+    } catch {
+      setMessage("Could not report question. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadAdminReports() {
+    if (!account?.isAdmin) {
+      setMessage("Only admins can view reported questions.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/questions/reports");
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok) {
+        showApiError(data, "Could not load reported questions.");
+        return;
+      }
+
+      setReportedQuestions(data.questions ?? []);
+      setMessage(`Loaded ${data.questions?.length ?? 0} reported questions.`);
+    } catch {
+      setMessage("Could not load reported questions. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#030711] text-white">
       <section className="relative isolate min-h-screen px-4 py-5 sm:px-6 lg:px-8">
@@ -674,15 +800,30 @@ export function FinalAnswerApp() {
                 playerCount={roomPlayerCount}
               />
             ) : account ? (
-              <ProfilePanel
-                account={account}
-                busy={busy}
-                displayNameDraft={displayNameDraft}
-                joinedDate={joinedDate}
-                onDisplayNameChange={setDisplayNameDraft}
-                onSubmitDisplayName={submitDisplayName}
-                stats={stats}
-              />
+              <div className="grid gap-4">
+                <ProfilePanel
+                  account={account}
+                  busy={busy}
+                  displayNameDraft={displayNameDraft}
+                  joinedDate={joinedDate}
+                  onDisplayNameChange={setDisplayNameDraft}
+                  onSubmitDisplayName={submitDisplayName}
+                  stats={stats}
+                />
+                <QuestionFoundationPanel
+                  account={account}
+                  busy={busy}
+                  onLoadAdminReports={loadAdminReports}
+                  onLoadQuestion={loadQuestion}
+                  onQuestionLevelChange={setQuestionLevel}
+                  onReportReasonChange={setReportReason}
+                  onSubmitQuestionReport={submitQuestionReport}
+                  question={question}
+                  questionLevel={questionLevel}
+                  reportReason={reportReason}
+                  reportedQuestions={reportedQuestions}
+                />
+              </div>
             ) : (
               <div className="grid gap-4 lg:grid-cols-[1fr_154px]">
                 <div className="grid gap-4">
@@ -1155,6 +1296,151 @@ function ProfilePanel(props: {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function QuestionFoundationPanel(props: {
+  account: Account;
+  busy: boolean;
+  onLoadAdminReports: () => void;
+  onLoadQuestion: () => void;
+  onQuestionLevelChange: (value: number) => void;
+  onReportReasonChange: (value: ReportReason) => void;
+  onSubmitQuestionReport: () => void;
+  question: Question | null;
+  questionLevel: number;
+  reportReason: ReportReason;
+  reportedQuestions: ReportedQuestion[];
+}) {
+  return (
+    <div className="border border-[#244b91] bg-[#061a3e] p-4">
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+        Question database
+      </p>
+      <h2 className="mt-3 text-2xl font-black">Question Bank Test</h2>
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+        <label className="block text-sm font-bold text-blue-50">
+          Level
+          <select
+            className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none transition focus:border-[#f6d37a]"
+            onChange={(event) =>
+              props.onQuestionLevelChange(Number(event.target.value))
+            }
+            value={props.questionLevel}
+          >
+            {Array.from({ length: 12 }, (_, index) => index + 1).map((level) => (
+              <option key={level} value={level}>
+                Level {level}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          className="self-end border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225] disabled:cursor-not-allowed disabled:opacity-55"
+          disabled={props.busy}
+          onClick={props.onLoadQuestion}
+          type="button"
+        >
+          Load Question
+        </button>
+      </div>
+
+      {props.question && (
+        <div className="mt-4 border border-[#244b91] bg-[#071a3d] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-[#f6d37a]">
+              {props.question.category}
+            </span>
+            <span className="font-mono text-xs font-black text-blue-100/70">
+              Level {props.question.level} | $
+              {props.question.prizeAmount.toLocaleString()}
+            </span>
+          </div>
+          <p className="mt-3 text-lg font-black leading-7">
+            {props.question.questionText}
+          </p>
+          <div className="mt-4 grid gap-2">
+            {[
+              ["A", props.question.answerA],
+              ["B", props.question.answerB],
+              ["C", props.question.answerC],
+              ["D", props.question.answerD],
+            ].map(([letter, answer]) => (
+              <div
+                className="border border-[#244b91] bg-[#020712] px-3 py-2 text-sm font-bold text-blue-50"
+                key={letter}
+              >
+                <span className="mr-2 font-mono text-[#f6d37a]">{letter}</span>
+                {answer}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <label className="block text-sm font-bold text-blue-50">
+              Report reason
+              <select
+                className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none transition focus:border-[#f6d37a]"
+                onChange={(event) =>
+                  props.onReportReasonChange(event.target.value as ReportReason)
+                }
+                value={props.reportReason}
+              >
+                {reportReasons.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="self-end border border-[#ff9f2f] bg-[#ff9f2f] px-4 py-3 font-black text-[#071225] disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={props.busy}
+              onClick={props.onSubmitQuestionReport}
+              type="button"
+            >
+              Report Question
+            </button>
+          </div>
+        </div>
+      )}
+
+      {props.account.isAdmin && (
+        <div className="mt-4 border border-[#f6d37a]/45 bg-[#050f25] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-black text-[#f6d37a]">
+              Admin report review
+            </p>
+            <button
+              className="border border-[#244b91] bg-[#0d2450]/80 px-3 py-2 text-sm font-black text-blue-100 disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={props.busy}
+              onClick={props.onLoadAdminReports}
+              type="button"
+            >
+              Load Reports
+            </button>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {props.reportedQuestions.length === 0 ? (
+              <p className="text-sm text-blue-100/65">No reports loaded.</p>
+            ) : (
+              props.reportedQuestions.map((question) => (
+                <div
+                  className="border border-[#244b91] bg-[#071a3d] p-3"
+                  key={question.id}
+                >
+                  <p className="text-sm font-black">{question.questionText}</p>
+                  <p className="mt-1 text-xs text-blue-100/65">
+                    Level {question.level} | {question.category} | Reports:{" "}
+                    {question.reportCount} | Active:{" "}
+                    {question.active ? "yes" : "no"}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

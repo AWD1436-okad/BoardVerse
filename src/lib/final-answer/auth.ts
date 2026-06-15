@@ -21,6 +21,7 @@ export type PublicAccount = {
   createdAt: string;
   displayName: string;
   id: string;
+  isAdmin: boolean;
   stats: AccountStats;
   username: string;
 };

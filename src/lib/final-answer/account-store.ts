@@ -15,6 +15,7 @@ type AccountRow = {
   created_at: string;
   display_name: string;
   id: string;
+  is_admin: boolean;
   pin_hash: string;
   username: string;
 };
@@ -39,6 +40,7 @@ function publicAccount(account: AccountRow, stats?: StatsRow | null): PublicAcco
     createdAt: account.created_at,
     displayName: account.display_name,
     id: account.id,
+    isAdmin: account.is_admin,
     stats: stats
       ? {
           fastestFingerWins: stats.fastest_finger_wins,
@@ -140,7 +142,7 @@ export async function createAccount(
       pin_hash: hashPin(input.pin),
       username: input.username,
     })
-    .select("id, username, display_name, pin_hash, created_at")
+    .select("id, username, display_name, is_admin, pin_hash, created_at")
     .single();
 
   if (accountError) {
@@ -179,7 +181,7 @@ export async function loginAccount(
 
   const { data: account, error: accountError } = await supabase
     .from("accounts")
-    .select("id, username, display_name, pin_hash, created_at")
+    .select("id, username, display_name, is_admin, pin_hash, created_at")
     .eq("username", input.username)
     .maybeSingle();
 
@@ -254,7 +256,7 @@ export async function getAccountBySession(
 
   const { data: account, error: accountError } = await supabase
     .from("accounts")
-    .select("id, username, display_name, pin_hash, created_at")
+    .select("id, username, display_name, is_admin, pin_hash, created_at")
     .eq("id", session.account_id)
     .maybeSingle();
 
@@ -307,7 +309,7 @@ export async function updateDisplayName(
     .from("accounts")
     .update({ display_name: input.displayName })
     .eq("id", input.accountId)
-    .select("id, username, display_name, pin_hash, created_at")
+    .select("id, username, display_name, is_admin, pin_hash, created_at")
     .single();
 
   if (error) {
@@ -328,3 +330,4 @@ export async function updateDisplayName(
 
   return publicAccount(account, stats);
 }
+

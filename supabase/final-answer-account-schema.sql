@@ -7,6 +7,7 @@ create table if not exists public.accounts (
   id uuid primary key default gen_random_uuid(),
   username text not null unique,
   display_name text not null,
+  is_admin boolean not null default false,
   pin_hash text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
