@@ -428,3 +428,11 @@ If Founder Access fails:
 2. Re-enter the private founder details exactly.
 3. If too many wrong attempts were made, wait 10 minutes.
 4. As a fallback, an owner can make an account admin directly in Supabase by setting `accounts.is_admin = true` for the correct account row.
+
+Production setup:
+1. In Vercel, open the `boardverse` project.
+2. Go to Settings -> Environment Variables.
+3. Add the three Founder Access variables listed above for the Production environment.
+4. Do not paste the private values into chat, code, screenshots, or project notes.
+5. Redeploy production after saving them.
+6. Log in normally, use Founder Access, and confirm admin tools appear.

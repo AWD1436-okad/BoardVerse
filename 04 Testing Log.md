@@ -737,7 +737,11 @@ Security/static verification:
 - Existing admin question APIs still check `account.isAdmin` server-side.
 
 Manual production checks still required after deployment:
-- Confirm Vercel has `FOUNDER_ACCESS_USERNAME`, `FOUNDER_ACCESS_DISPLAY_NAME`, and `FOUNDER_ACCESS_PHRASE` set for production.
+- Vercel production deployment `dpl_HjanhZRGnN7kQxYKqrYK828Pe2Sv` is Ready for commit `8c829d1`.
+- `https://playsgrid.org` returned HTTP 200 after deployment.
+- Public HTML shows Final Answer branding and did not expose the exact founder details.
+- Logged-out POST to `/api/account/founder-access` returned `401 not_logged_in`.
+- Vercel production currently has Supabase env vars but does not yet have `FOUNDER_ACCESS_USERNAME`, `FOUNDER_ACCESS_DISPLAY_NAME`, or `FOUNDER_ACCESS_PHRASE`, so the successful Founder Access path cannot be production-verified until those server-only variables are added and redeployed.
 - Wrong Founder Access details are rejected with "Invalid founder access details".
 - Five wrong Founder Access attempts trigger a 10-minute lockout.
 - Correct Founder Access details set the current logged-in account to admin.
