@@ -13,7 +13,7 @@ The previous PlayGrid board-game product is retired and can be replaced.
 - Hosting: Vercel.
 - Vercel project currently linked as `boardverse`.
 - GitHub remote: `https://github.com/AWD1436-okad/BoardVerse.git`.
-- Current public app: Final Answer through Milestone 8 Lifelines.
+- Current public app: Final Answer first complete family-testing version through Milestone 11.
 
 ## How To Run Locally
 
@@ -23,9 +23,7 @@ The previous PlayGrid board-game product is retired and can be replaced.
 
 ## Required Environment Variables
 
-Not configured yet in Vercel.
-
-Required for Milestone 2 accounts:
+Configured in Vercel production:
 - `NEXT_PUBLIC_SUPABASE_URL`: browser-safe Supabase project URL.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: browser-safe Supabase publishable key. This is expected for later client-side Supabase features.
 - `SUPABASE_SECRET_KEY`: server-only Supabase secret key used by Next.js API routes to create accounts, verify PINs, create sessions, and update profiles.
@@ -77,6 +75,15 @@ Tables:
 
 Admin support:
 - `accounts.is_admin` controls access to admin-only question report routes.
+- To make an account an admin, open Supabase SQL Editor and run:
+
+```sql
+update public.accounts
+set is_admin = true
+where username = 'chosen_username';
+```
+
+- To remove admin access, run the same update with `false`.
 
 Milestone 5 realtime game-state tables are defined in:
 - `supabase/final-answer-game-state-schema.sql`
@@ -236,6 +243,66 @@ Milestone 10 admin question tools:
 - Admins can mark questions inactive or reactivate questions.
 - Advanced direct editing of question text/answers is intentionally not built yet.
 
+How to review reported questions:
+1. Log into `https://playsgrid.org` with an admin account.
+2. Open the account/profile area.
+3. Use the Question Review admin panel.
+4. Filter by reported questions using minimum reports `1`, or search/filter by level, category, or active status.
+5. Read the report reason and note.
+6. Mark the question inactive if it should stop appearing.
+7. Reactivate it later if it is safe to use again.
+
+How to regenerate and seed questions:
+1. Edit `scripts/generate-question-seed.mjs` only if the generation rules need to change.
+2. Run `node scripts/generate-question-seed.mjs`.
+3. Run `npm.cmd run question:audit`.
+4. Review the generated `src/lib/final-answer/starter-questions.json`.
+5. Deploy the app.
+6. Log in as an admin and call the protected seed route, or use the generated SQL in `supabase/final-answer-question-seed.sql`.
+7. Confirm there are 1,200 active questions, 100 per level, and A/B/C/D balance is 300 each.
+
+## Manual Family Testing Checklist
+
+Use this checklist for the first real family test session:
+
+1. Open `https://playsgrid.org` on a computer and on at least one phone.
+2. Create two or more accounts with unique usernames and 4-digit PINs.
+3. Try a wrong PIN and confirm login is rejected.
+4. Log in successfully.
+5. Check the profile/stats panel loads.
+6. Create a private room with 2 players.
+7. Share the room code.
+8. Join the room from the second account.
+9. Confirm invalid room codes show an error.
+10. Press Ready on every player.
+11. Confirm Start Game is disabled until the room is full and everyone is ready.
+12. Start the game.
+13. Complete Fastest Finger by arranging answers.
+14. Confirm the winner enters the Hot Seat.
+15. Select an answer, cancel once, then confirm a final answer.
+16. Use 50:50 and confirm two answers disappear.
+17. Use Ask The Audience and confirm percentages appear.
+18. Use Pass in a game with another eligible player and confirm the next player enters the Hot Seat.
+19. Try Pass when no other eligible player remains and confirm it is blocked.
+20. Report a Hot Seat question with a reason and optional note.
+21. Finish every player's Hot Seat turn.
+22. Confirm final results show placements and ties correctly.
+23. Return home and confirm profile stats changed.
+24. On an admin account, load Question Review and confirm the report appears.
+25. On a normal account, confirm admin tools are not visible and admin API access is blocked.
+26. Repeat key screens on a phone: landing, forms, lobby, Fastest Finger, Hot Seat, lifelines, results.
+
+## Launch Readiness
+
+Final Answer is ready for first friends-and-family testing.
+
+Use it as a private family beta:
+- Expect gameplay to work end to end.
+- Ask testers to report confusing or wrong questions.
+- Avoid adding big features until the first real play session has been observed.
+- Review reported questions after each session.
+- Keep a short list of any bugs, confusing screens, or slow moments.
+
 Important:
 - Do not paste Supabase keys into chat.
 - Do not put Supabase keys into code.
@@ -265,9 +332,10 @@ Standard production flow:
 - Milestone 8 Lifelines is implemented, deployed, connected to Supabase, and production-verified.
 - Milestone 9 Final Results, Stats, and In-Game Reporting is implemented, deployed, connected to Supabase, and production-verified through API/database checks.
 - Milestone 10 Full Question Bank and Admin Tools is implemented, deployed, seeded, and production-verified.
+- Milestone 11 Final Polish and Launch Readiness is implemented, deployed, and production-verified.
 - No chat, sound effects, or advanced admin question editing exists yet.
 - Starting a room now creates a `game_states` record, starts Fastest Finger, moves the winner to `hot_seat`, and plays through hot-seat turns until the room is `completed`.
 - Hot Seat players can now use 50:50, Ask The Audience, and Pass.
 - The 1,200-question generation/import process exists, but owner review is still needed before broad family use.
-- The temporary game-state debug panel should be removed or hidden before final launch.
+- Normal-user temporary debug and question-test panels are hidden.
 - Start Game should eventually become a single Postgres transaction/function to reduce partial-update risk.

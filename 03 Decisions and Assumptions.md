@@ -65,6 +65,8 @@
 - Allow Hot Seat question reports during gameplay, but store them server-side with room and turn context and do not expose correct answers.
 - Block repeat reporting for the same Hot Seat question turn with a database unique index.
 - Keep admin question tools basic for the MVP: admins can filter, search, review reports, deactivate, and reactivate questions, but advanced text editing is deferred.
+- Hide temporary debug and test panels from normal users for the first family-testing version.
+- Treat Milestone 11 as the first complete family-testing version unless serious bugs are found.
 
 ## Open Risks
 
@@ -79,3 +81,4 @@
 - Hot Seat turn advancement currently uses sequential server operations rather than one transaction. This is acceptable for the private MVP but should eventually move into a Postgres function for stronger consistency.
 - Lifeline updates currently use sequential server operations rather than one transaction. This is acceptable for the private MVP, but 50:50, Pass, and reveal transitions should eventually move into Postgres functions for stronger consistency under simultaneous clicks.
 - Result finalization currently uses sequential server operations protected by a room-level finalization timestamp. This prevents duplicate stat updates for normal refresh/retry behavior, but a future Postgres function would make the whole finalization fully transactional.
+- First family testing may reveal question-quality issues because the 1,200-question bank is generated and only automatically audited; reported questions should be reviewed regularly by an admin.

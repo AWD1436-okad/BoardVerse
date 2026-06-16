@@ -303,3 +303,27 @@ What is still not built:
 
 Next milestone:
 - Milestone 11: final polish, bug fixing, manual testing support, deployment/handover, and launch readiness.
+
+## 2026-06-16 - Milestone 11 Launch Readiness Completed
+
+Milestone 11 prepares Final Answer as the first complete version for friends and family testing.
+
+What works now:
+- Accounts, username/PIN login, profile stats, private rooms, room codes, ready/start, Fastest Finger, Hot Seat, 50:50, Ask The Audience, Pass, final results, stats updates, question reporting, and admin question tools are implemented and production-verified.
+- Normal users no longer see the temporary game-state debug panel.
+- Normal users no longer see the old question-bank test panel.
+- Admin question review remains available only to accounts with `is_admin = true`.
+- The live public page at `https://playsgrid.org` has Final Answer branding and no old PlayGrid or BoardVerse public labels.
+- Production has 1,200 active Hot Seat questions with 100 per level and A/B/C/D balance of 300 each.
+
+Known limitations:
+- The app is ready for first friends-and-family testing, but the generated question bank still needs owner review for quality.
+- Chat is not built.
+- Sound effects are not built.
+- Advanced question editing is not built; admins can deactivate/reactivate questions and review reports.
+- Several game-state operations are still sequential server operations rather than single Postgres transactions. This is acceptable for the first private family version, but should be hardened before larger-scale use.
+
+Current recommendation:
+- Treat the app as the first complete version for family testing.
+- Use the manual checklist in `05 Deployment and Handover.md` during the first real family game session.
+- Log any confusing wording, wrong answers, or gameplay bugs and address them as small repair tasks before adding new features.

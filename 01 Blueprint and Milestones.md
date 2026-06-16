@@ -194,7 +194,7 @@ Implementation note:
 - Admins can view total/active/inactive/reported counts, per-level counts, answer balance, reported questions, report reasons/notes, and can mark questions inactive or reactivate them.
 - Advanced question editing is intentionally deferred.
 
-### Milestone 11 - Final Polish, Manual Testing Support, and Launch Readiness
+### Milestone 11 - Final Polish, Manual Testing Support, and Launch Readiness - Completed 2026-06-16
 
 - Remove or hide temporary debug UI before launch.
 - Full manual click-through support for accounts, rooms, Fastest Finger, Hot Seat, lifelines, results, reporting, and admin review.
@@ -202,3 +202,11 @@ Implementation note:
 - Improve mobile polish, accessibility, empty states, and error messages.
 - Prepare final handover and launch checklist.
 - Decide whether to add simple sound effects or keep them after launch.
+
+Implementation note:
+- Removed the normal-user game-state debug panel that showed raw game-state ids, sync status, and internal counters.
+- Removed the normal-user question-bank test panel; question review tools now show only for admin accounts.
+- Verified account, room, Fastest Finger, Hot Seat, lifeline, report, result, stat, admin authorization, and room edge-case behavior against production.
+- Verified the live page has no old PlayGrid or BoardVerse public labels.
+- Prepared the manual family testing checklist and launch handover notes.
+- Sound effects and chat remain future improvements rather than launch blockers.

@@ -586,3 +586,64 @@ Production verification:
 - Playwright desktop screenshot of `https://playsgrid.org` passed.
 - Playwright mobile screenshot at 390x844 passed with no obvious overlap.
 - Vercel runtime logs during verification showed successful 200 responses and the expected 409 duplicate-report response; no server error logs were returned.
+
+## 2026-06-16 - Milestone 11 Final Polish and Launch Readiness
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run question:audit` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Cleanup verified:
+- Removed the normal-user temporary game-state debug panel.
+- Removed the normal-user question-bank test panel.
+- Admin question review remains available only for admin accounts.
+- Public `https://playsgrid.org` HTML contains Final Answer and does not contain PlayGrid, BoardVerse, `Question Bank Test`, `Temporary game-state debug`, `SUPABASE_SECRET_KEY`, `pin_hash`, or `correct_answer`.
+
+Production edge-case verification:
+- Duplicate username blocked with `409`.
+- Wrong PIN blocked with `401`.
+- Logged-out create-room blocked with `401`.
+- Invalid room code blocked with `400`.
+- Room full join blocked with `409`.
+- Normal non-admin user blocked from admin question list with `403`.
+- Normal non-admin user blocked from admin question activate/deactivate with `403`.
+- Host leaving before start transferred host to the remaining player.
+- Player leaving before start could rejoin by room code.
+- Player leaving after start was blocked from rejoining that game with `409`.
+
+Complete production 2-player game verification:
+- Created two live test accounts and a private 2-player room.
+- Joined by room code, set both players ready, and started the game.
+- Fastest Finger public response did not expose `correct_order` or `correctOrder`.
+- Fastest Finger winner entered the Hot Seat.
+- Hot Seat public response did not expose `correctAnswer` before reveal.
+- Pass moved the first hot-seat player to the back of the queue and brought the next eligible player into the Hot Seat at the same level.
+- Wrong answer ended a Hot Seat turn with `$0` before any safety net.
+- Remaining player completed the next Fastest Finger round.
+- Pass was blocked when no other eligible player remained with `409`.
+- 50:50 removed exactly two answers.
+- 50:50 duplicate use was blocked with `409`.
+- Ask The Audience percentages totaled 100.
+- Ask The Audience duplicate use was blocked with `409`.
+- Selecting a removed 50:50 answer was blocked with `409`.
+- Final wrong answer completed the game.
+- Final results returned two result rows.
+- Calling results twice did not double-update stats.
+- Stats after the completed game showed one game played per player and expected tie/score values.
+
+Security/privacy verification:
+- Production account rows use `scrypt:` PIN hashes.
+- Production account rows with plain 4-digit PIN hashes: 0.
+- RLS is enabled on accounts, stats, sessions, login attempts, rooms, room players, questions, reports, game state, room events, Fastest Finger tables, Hot Seat turns, and game results.
+- Normal users cannot access admin question routes.
+- Normal users cannot activate or deactivate questions.
+- Stats updates remain server-owned through completed-game finalization; there is no normal-user stats update route.
+
+Browser/layout verification:
+- `https://playsgrid.org` returned HTTP 200.
+- Desktop Playwright screenshot passed visual inspection.
+- Mobile Playwright screenshot at 390x844 passed visual inspection.
+- Vercel runtime logs during verification showed expected 200 responses and expected 400/401/403/409 guardrail responses; no fatal production runtime errors were found.
