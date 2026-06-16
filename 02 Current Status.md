@@ -428,3 +428,48 @@ Conclusion:
 - Founder Access is not fully working in production yet.
 - Because Vercel lists the variable names but the server still sees the Founder Access config as missing, at least one of the three Production values is likely blank, saved incorrectly, or unavailable to the runtime.
 - Re-enter the three Founder Access values in Vercel Production, save them as non-empty values, redeploy, and rerun verification.
+
+## 2026-06-17 - Founder Access Safe Diagnostic Added
+
+Completed:
+- Confirmed the Founder Access route reads exactly:
+  - `FOUNDER_ACCESS_USERNAME`
+  - `FOUNDER_ACCESS_DISPLAY_NAME`
+  - `FOUNDER_ACCESS_PHRASE`
+- Confirmed the route uses server-only `process.env` inside the API route.
+- Confirmed the app code does not use alternate Founder/Admin names such as `ADMIN_ACCESS_CODE`, `FOUNDER_USERNAME`, `FOUNDER_DISPLAY_NAME`, `FOUNDER_PHRASE`, or `NEXT_PUBLIC_` Founder variables.
+- Added a safe server-side diagnostic response for `founder_access_unconfigured`.
+
+Production diagnosis:
+- The three Founder Access environment variable names are present in Vercel Production.
+- The live server reports all three are blank after trimming:
+  - `FOUNDER_ACCESS_USERNAME`
+  - `FOUNDER_ACCESS_DISPLAY_NAME`
+  - `FOUNDER_ACCESS_PHRASE`
+- No Founder values are returned by the diagnostic, only variable names and present/non-empty booleans.
+
+Next action:
+- Delete the three blank Founder Access variables from Vercel Production.
+- Recreate them with the exact names above.
+- Paste the private values into the Value fields.
+- Select Production.
+- Save, redeploy the latest production deployment, then rerun Founder Access verification.
+
+## 2026-06-17 - Founder Access Reverification After Recreated Variables
+
+Verified:
+- The live site still loads at `https://playsgrid.org`.
+- Wrong Founder Access details were tested with a logged-in throwaway account.
+- The route still returned `503 founder_access_unconfigured`, not `401 invalid_founder_access`.
+- The safe diagnostic still reports all three Founder Access variables as present but blank after trimming:
+  - `FOUNDER_ACCESS_USERNAME`
+  - `FOUNDER_ACCESS_DISPLAY_NAME`
+  - `FOUNDER_ACCESS_PHRASE`
+- Five wrong attempts could not trigger lockout because the route exits early while the config is blank.
+- Correct Founder Access details could not set `is_admin = true` because the route exits early while the config is blank.
+- Admin APIs still correctly block normal users with `403 admin_only`.
+- Public HTML/API responses, recent Vercel logs, and local browser/static build assets did not expose the exact founder values.
+
+Conclusion:
+- Founder Access is still not operational.
+- The production issue remains Vercel configuration: all three Founder Access variable names exist, but their runtime values are blank.

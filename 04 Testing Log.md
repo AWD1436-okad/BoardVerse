@@ -819,3 +819,61 @@ Blocked tests:
 Conclusion:
 - Founder Access is still not fully working in production.
 - Vercel shows the three variable names, but the live server still treats the Founder Access config as missing. The safest next step is to re-enter the three Founder Access values in Vercel Production, confirm each value field is non-empty, save, redeploy, and rerun this verification.
+
+## 2026-06-17 - Founder Access Safe Configuration Diagnostic
+
+Code inspection:
+- Founder Access route reads exactly:
+  - `FOUNDER_ACCESS_USERNAME`
+  - `FOUNDER_ACCESS_DISPLAY_NAME`
+  - `FOUNDER_ACCESS_PHRASE`
+- Founder Access route reads those values server-side through `process.env`.
+- Code search found no alternate Founder/Admin variable names in use:
+  - `ADMIN_ACCESS_CODE`
+  - `FOUNDER_USERNAME`
+  - `FOUNDER_DISPLAY_NAME`
+  - `FOUNDER_PHRASE`
+  - `NEXT_PUBLIC_` Founder variables
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run question:audit` - passed. Existing Fastest Finger seed module-type warning appeared, but the audit passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Deployment:
+- Commit `27b742b` deployed to Vercel Production.
+- Latest checked deployment was Ready and served `https://playsgrid.org`.
+
+Safe production diagnostic:
+- Logged-out POST to `/api/account/founder-access` returned `401 not_logged_in` - passed.
+- Logged-in diagnostic POST returned `503 founder_access_unconfigured` with safe config details only.
+- Diagnostic showed all three required variables are present but blank after trimming:
+  - `FOUNDER_ACCESS_USERNAME`
+  - `FOUNDER_ACCESS_DISPLAY_NAME`
+  - `FOUNDER_ACCESS_PHRASE`
+- The response did not return any secret values.
+
+Conclusion:
+- The code is using the correct variable names.
+- The production problem is Vercel configuration: all three Founder Access variables exist but have blank values.
+- Delete and recreate the three Vercel Production variables with non-empty private values, redeploy, and rerun Founder Access verification.
+
+## 2026-06-17 - Founder Access Reverification After Recreated Values
+
+Production tests:
+- Wrong Founder Access details returned `503 founder_access_unconfigured`, not `401 invalid_founder_access` - failed.
+- Safe diagnostic body reported each required Founder Access variable as `present: true` and `nonEmpty: false` - failed configuration.
+- Five wrong attempts did not trigger the Founder Access lockout because failed attempts are not recorded while the route exits early as unconfigured - blocked.
+- Correct Founder Access details returned `503 founder_access_unconfigured`; the test account remained `isAdmin = false` - failed.
+- Admin API after attempted unlock returned `403`, because the account was not promoted to admin - blocked by blank config.
+- Normal user admin API access returned `403 admin_only` - passed.
+- Public homepage HTML did not contain the exact founder values - passed.
+- API responses from the tested Founder/Admin endpoints did not contain the exact founder values - passed.
+- Local scan of `src`, `public`, `.next/static`, and `.next/server/app` found zero exact founder-value matches - passed.
+- Recent Vercel logs showed only paths/status codes and no founder values - passed.
+
+Conclusion:
+- Founder Access is still not fully operational.
+- The production runtime still receives all three Founder Access values as blank even though the variable names exist.

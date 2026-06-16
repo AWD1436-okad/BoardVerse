@@ -440,5 +440,22 @@ Production setup:
 Troubleshooting current production setup:
 - Vercel may show the variable names even if a value was saved blank or not available to the current runtime.
 - If `/api/account/founder-access` returns `founder_access_unconfigured`, re-open each Founder Access environment variable in Vercel Production, re-enter the private value, save it, and redeploy.
+- The safe diagnostic response may show a variable as `present: true` and `nonEmpty: false`. That means the variable name exists in Vercel, but the value is blank after trimming.
+- If all three Founder Access variables are blank, delete and recreate them instead of editing in place.
 - The expected wrong-details response after setup is `invalid_founder_access`.
 - The expected correct-details response after setup is `Founder access enabled`, and the current account should then show admin tools.
+
+Recommended Vercel repair steps for blank Founder Access variables:
+1. Open Vercel.
+2. Open the `boardverse` project.
+3. Go to Settings -> Environment Variables.
+4. Delete these three Production variables:
+   - `FOUNDER_ACCESS_USERNAME`
+   - `FOUNDER_ACCESS_DISPLAY_NAME`
+   - `FOUNDER_ACCESS_PHRASE`
+5. Add them again with the exact same names.
+6. Paste each private value into the Value field. Do not leave the value field blank.
+7. Select Production.
+8. Save the variables.
+9. Redeploy the latest Production deployment.
+10. Log in normally and use Founder Access again.
