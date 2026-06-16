@@ -319,6 +319,31 @@ Standard production flow:
 6. Verify Vercel status is Ready.
 7. Browser-check `https://playsgrid.org`.
 
+## How To Test After A Bug Fix
+
+Use this small repeatable process after any repair:
+
+1. Confirm what bug was fixed in plain English.
+2. Test the exact thing that failed before.
+3. Test one nearby flow that could have been affected.
+4. Run the standard checks:
+   - `npm.cmd run typecheck`
+   - `npm.cmd run lint`
+   - `npm.cmd run question:audit` if question data changed
+   - `npm.cmd run money:audit` if score/prize wording changed
+   - `npx.cmd next build`
+5. Commit and push the fix to GitHub `main`.
+6. Wait for Vercel to show Ready.
+7. Open `https://playsgrid.org` and test the fixed flow again.
+8. If the fix touches gameplay, test with two accounts in a private room.
+9. Update `04 Testing Log.md` with what was tested and the result.
+
+For a question-quality fix:
+1. Mark the bad question inactive immediately if it may affect players.
+2. If the question bank file changes, run `npm.cmd run question:audit`.
+3. Reseed questions only after the audit passes.
+4. Confirm the bad question no longer appears if it was deactivated.
+
 ## Current Known Limitations
 
 - The live app should now show the Final Answer foundation after the latest production deployment.
