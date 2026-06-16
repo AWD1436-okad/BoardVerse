@@ -321,7 +321,6 @@ export function FinalAnswerApp() {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [missingSetup, setMissingSetup] = useState<string[]>([]);
   const [message, setMessage] = useState("");
-  const [realtimeStatus, setRealtimeStatus] = useState("Realtime idle");
   const [busy, setBusy] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
   const [fastestFinger, setFastestFinger] = useState<FastestFingerState | null>(
@@ -499,9 +498,7 @@ export function FinalAnswerApp() {
           }, 150);
         },
       )
-      .subscribe((status) => {
-        setRealtimeStatus(`Realtime ${status.toLowerCase()}`);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -1479,7 +1476,6 @@ export function FinalAnswerApp() {
                 onSubmitFastestFinger={submitFastestFingerOrder}
                 onUpdateFastestFingerOrder={setFastestFingerOrder}
                 onUpdateReady={updateReady}
-                realtimeStatus={room ? realtimeStatus : "Realtime idle"}
                 room={room}
                 selectedHotSeatAnswer={selectedHotSeatAnswer}
                 hotSeatReportNote={hotSeatReportNote}
@@ -1509,31 +1505,33 @@ export function FinalAnswerApp() {
                   onSubmitDisplayName={submitDisplayName}
                   stats={stats}
                 />
-                <QuestionFoundationPanel
-                  account={account}
-                  adminActiveFilter={adminQuestionActive}
-                  adminCategoryFilter={adminQuestionCategory}
-                  adminLevelFilter={adminQuestionLevel}
-                  adminMinReports={adminQuestionMinReports}
-                  adminSearch={adminQuestionSearch}
-                  adminSummary={adminQuestionSummary}
-                  busy={busy}
-                  onLoadAdminReports={loadAdminReports}
-                  onLoadQuestion={loadQuestion}
-                  onAdminActiveFilterChange={setAdminQuestionActive}
-                  onAdminCategoryFilterChange={setAdminQuestionCategory}
-                  onAdminLevelFilterChange={setAdminQuestionLevel}
-                  onAdminMinReportsChange={setAdminQuestionMinReports}
-                  onAdminSearchChange={setAdminQuestionSearch}
-                  onQuestionLevelChange={setQuestionLevel}
-                  onReportReasonChange={setReportReason}
-                  onSubmitQuestionReport={submitQuestionReport}
-                  onToggleQuestionActive={toggleAdminQuestion}
-                  question={question}
-                  questionLevel={questionLevel}
-                  reportReason={reportReason}
-                  reportedQuestions={reportedQuestions}
-                />
+                {account.isAdmin && (
+                  <QuestionFoundationPanel
+                    account={account}
+                    adminActiveFilter={adminQuestionActive}
+                    adminCategoryFilter={adminQuestionCategory}
+                    adminLevelFilter={adminQuestionLevel}
+                    adminMinReports={adminQuestionMinReports}
+                    adminSearch={adminQuestionSearch}
+                    adminSummary={adminQuestionSummary}
+                    busy={busy}
+                    onLoadAdminReports={loadAdminReports}
+                    onLoadQuestion={loadQuestion}
+                    onAdminActiveFilterChange={setAdminQuestionActive}
+                    onAdminCategoryFilterChange={setAdminQuestionCategory}
+                    onAdminLevelFilterChange={setAdminQuestionLevel}
+                    onAdminMinReportsChange={setAdminQuestionMinReports}
+                    onAdminSearchChange={setAdminQuestionSearch}
+                    onQuestionLevelChange={setQuestionLevel}
+                    onReportReasonChange={setReportReason}
+                    onSubmitQuestionReport={submitQuestionReport}
+                    onToggleQuestionActive={toggleAdminQuestion}
+                    question={question}
+                    questionLevel={questionLevel}
+                    reportReason={reportReason}
+                    reportedQuestions={reportedQuestions}
+                  />
+                )}
               </div>
             ) : (
               <div className="grid gap-4 lg:grid-cols-[1fr_154px]">
@@ -1715,17 +1713,12 @@ function RoomLobby(props: {
   onUpdateFastestFingerOrder: (order: FastestFingerItemKey[]) => void;
   onUpdateReady: (isReady: boolean) => void;
   onUseLifeline: (lifeline: "5050" | "audience" | "pass") => void;
-  realtimeStatus: string;
   room: Room;
   selectedHotSeatAnswer: HotSeatAnswerKey | null;
   timerNow: number;
 }) {
   const activePlayers = props.room.players.filter((player) => !player.leftAt);
   const waiting = props.room.status === "waiting";
-  const host = props.room.players.find(
-    (player) => player.accountId === props.room.hostAccountId,
-  );
-
   return (
     <div className="grid gap-4">
       <div className="border border-[#244b91] bg-[#061a3e] p-4">
@@ -1838,19 +1831,6 @@ function RoomLobby(props: {
           onReturnHome={props.onReturnHome}
           results={props.gameResults}
           roomCode={props.room.code}
-        />
-      )}
-
-      {props.room.status !== "completed" && (
-        <GameStateDebugPanel
-          activePlayerCount={activePlayers.length}
-          eligiblePlayerCount={props.room.gameState?.eligibleAccountIds.length ?? 0}
-          gameStateId={props.room.gameState?.id ?? "Not created"}
-          hostDisplayName={host?.displayName ?? "No host"}
-          realtimeStatus={props.realtimeStatus}
-          roomCode={props.room.code}
-          roomStatus={props.room.status}
-          selectedPlayerCount={props.room.selectedPlayerCount}
         />
       )}
 
@@ -2624,48 +2604,6 @@ function FinalResultsPanel(props: {
   );
 }
 
-function GameStateDebugPanel(props: {
-  activePlayerCount: number;
-  eligiblePlayerCount: number;
-  gameStateId: string;
-  hostDisplayName: string;
-  realtimeStatus: string;
-  roomCode: string;
-  roomStatus: RoomStatus;
-  selectedPlayerCount: number;
-}) {
-  return (
-    <div className="border border-[#f6d37a]/45 bg-[#050f25] p-4">
-      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
-        Temporary game-state debug
-      </p>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-        {[
-          ["Room code", props.roomCode],
-          ["Room status", props.roomStatus.replace("_", " ")],
-          ["Game state", props.gameStateId],
-          ["Host", props.hostDisplayName],
-          [
-            "Players",
-            `${props.activePlayerCount} / ${props.selectedPlayerCount}`,
-          ],
-          ["Eligible", props.eligiblePlayerCount.toLocaleString()],
-          ["Sync", props.realtimeStatus],
-        ].map(([label, value]) => (
-          <div className="border border-[#244b91] bg-[#071a3d] p-2" key={label}>
-            <p className="font-black uppercase tracking-[0.08em] text-blue-100/50">
-              {label}
-            </p>
-            <p className="mt-1 break-words font-mono font-black text-[#f6d37a]">
-              {value}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function AccountPanel(props: {
   activePanel: Panel;
   busy: boolean;
@@ -2874,9 +2812,9 @@ function QuestionFoundationPanel(props: {
   return (
     <div className="border border-[#244b91] bg-[#061a3e] p-4">
       <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
-        Question database
+        Admin tools
       </p>
-      <h2 className="mt-3 text-2xl font-black">Question Bank Test</h2>
+      <h2 className="mt-3 text-2xl font-black">Question Review</h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
         <label className="block text-sm font-bold text-blue-50">
           Level
