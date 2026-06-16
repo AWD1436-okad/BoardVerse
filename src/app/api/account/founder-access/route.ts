@@ -6,64 +6,11 @@ import {
   getFounderAccessLockout,
   recordFailedFounderAccess,
 } from "@/lib/final-answer/account-store";
+import { getFounderAccessConfig } from "@/lib/final-answer/founder-access-config";
 import { jsonError } from "@/lib/final-answer/responses";
 import { getRequestContext } from "@/lib/final-answer/route-helpers";
 
 export const runtime = "nodejs";
-
-const founderEnvKeys = [
-  "FOUNDER_ACCESS_USERNAME",
-  "FOUNDER_ACCESS_DISPLAY_NAME",
-  "FOUNDER_ACCESS_PHRASE",
-] as const;
-
-function getFounderAccessConfig() {
-  const status = founderEnvKeys.map((key) => {
-    const rawValue = process.env[key];
-    const trimmedValue = rawValue?.trim() ?? "";
-
-    return {
-      key,
-      nonEmpty: trimmedValue.length > 0,
-      present: typeof rawValue === "string",
-      value: trimmedValue,
-    };
-  });
-
-  const missing = status
-    .filter((entry) => !entry.present)
-    .map((entry) => entry.key);
-  const blank = status
-    .filter((entry) => entry.present && !entry.nonEmpty)
-    .map((entry) => entry.key);
-  const [username, displayName, founderPhrase] = status.map(
-    (entry) => entry.value,
-  );
-
-  if (missing.length > 0 || blank.length > 0) {
-    return {
-      blank,
-      config: null,
-      missing,
-      status: status.map(({ key, nonEmpty, present }) => ({
-        key,
-        nonEmpty,
-        present,
-      })),
-    };
-  }
-
-  return {
-    blank,
-    config: { displayName, founderPhrase, username },
-    missing,
-    status: status.map(({ key, nonEmpty, present }) => ({
-      key,
-      nonEmpty,
-      present,
-    })),
-  };
-}
 
 function safeEqual(left: string, right: string) {
   const leftBuffer = Buffer.from(left);
