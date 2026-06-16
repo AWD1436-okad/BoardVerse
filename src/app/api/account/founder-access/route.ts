@@ -18,15 +18,51 @@ const founderEnvKeys = [
 ] as const;
 
 function getFounderAccessConfig() {
-  const [username, displayName, founderPhrase] = founderEnvKeys.map(
-    (key) => process.env[key]?.trim() ?? "",
+  const status = founderEnvKeys.map((key) => {
+    const rawValue = process.env[key];
+    const trimmedValue = rawValue?.trim() ?? "";
+
+    return {
+      key,
+      nonEmpty: trimmedValue.length > 0,
+      present: typeof rawValue === "string",
+      value: trimmedValue,
+    };
+  });
+
+  const missing = status
+    .filter((entry) => !entry.present)
+    .map((entry) => entry.key);
+  const blank = status
+    .filter((entry) => entry.present && !entry.nonEmpty)
+    .map((entry) => entry.key);
+  const [username, displayName, founderPhrase] = status.map(
+    (entry) => entry.value,
   );
 
-  if (!username || !displayName || !founderPhrase) {
-    return null;
+  if (missing.length > 0 || blank.length > 0) {
+    return {
+      blank,
+      config: null,
+      missing,
+      status: status.map(({ key, nonEmpty, present }) => ({
+        key,
+        nonEmpty,
+        present,
+      })),
+    };
   }
 
-  return { displayName, founderPhrase, username };
+  return {
+    blank,
+    config: { displayName, founderPhrase, username },
+    missing,
+    status: status.map(({ key, nonEmpty, present }) => ({
+      key,
+      nonEmpty,
+      present,
+    })),
+  };
 }
 
 function safeEqual(left: string, right: string) {
@@ -75,11 +111,25 @@ export async function POST(request: Request) {
 
   const founderConfig = getFounderAccessConfig();
 
-  if (!founderConfig) {
-    return jsonError(
-      "Founder Access is not configured yet.",
-      503,
-      "founder_access_unconfigured",
+  if (!founderConfig.config) {
+    const details = [
+      ...founderConfig.missing.map((key) => `${key} missing`),
+      ...founderConfig.blank.map((key) => `${key} blank`),
+    ];
+
+    return NextResponse.json(
+      {
+        blank: founderConfig.blank,
+        code: "founder_access_unconfigured",
+        config: founderConfig.status,
+        message:
+          details.length > 0
+            ? `Founder Access is not configured: ${details.join(", ")}.`
+            : "Founder Access is not configured yet.",
+        missing: founderConfig.missing,
+        ok: false,
+      },
+      { status: 503 },
     );
   }
 
@@ -102,7 +152,7 @@ export async function POST(request: Request) {
     username?: unknown;
   } | null;
 
-  if (!body || !founderDetailsMatch(founderConfig, body)) {
+  if (!body || !founderDetailsMatch(founderConfig.config, body)) {
     await recordFailedFounderAccess(context.supabase!, context.account.id);
 
     return jsonError(
