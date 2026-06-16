@@ -337,6 +337,36 @@ export async function getRoom(supabase: SupabaseClient, roomId: string) {
   return fetchRoomById(supabase, roomId);
 }
 
+export async function getActiveRoomForAccount(
+  supabase: SupabaseClient,
+  accountId: string,
+) {
+  const { data: memberships, error } = await supabase
+    .from("room_players")
+    .select("room_id, joined_at")
+    .eq("account_id", accountId)
+    .is("left_at", null)
+    .order("joined_at", { ascending: false })
+    .limit(8);
+
+  if (error) {
+    throw error;
+  }
+
+  for (const membership of memberships ?? []) {
+    const room = await fetchRoomById(supabase, membership.room_id);
+    const activeMembership = room?.players.some(
+      (player) => player.accountId === accountId && !player.leftAt,
+    );
+
+    if (room && activeMembership) {
+      return room;
+    }
+  }
+
+  return null;
+}
+
 export async function joinRoom(
   supabase: SupabaseClient,
   input: { account: PublicAccount; code: string },

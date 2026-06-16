@@ -377,5 +377,54 @@ For a question-quality fix:
 - The 1,200-question generation/import process exists, but owner review is still needed before broad family use.
 - Normal-user temporary debug and question-test panels are hidden.
 - The player UI is now state-based so logged-out, home, room setup, lobby, Fastest Finger, Hot Seat, completed results, and admin tools do not all appear on one mixed page.
-- Reloading the browser during an active game still does not automatically restore the active room. This should be fixed with a future "resume active room" flow before relying on refresh/reconnect during family testing.
+- Reloading the browser during an active game now attempts to restore the active room/game screen for players who have not intentionally left.
+- Intentional Leave Room is different from refresh/reconnect: Leave Room marks the player as having left on the server, while refresh/reconnect only reloads the current active membership.
 - Start Game should eventually become a single Postgres transaction/function to reduce partial-update risk.
+
+## Refresh / Reconnect Behavior
+
+On page load after a saved login session:
+1. The app checks `/api/account/session`.
+2. If the player is logged in, the app calls `/api/rooms/active`.
+3. If the player still has an active room membership, the app restores the matching screen:
+   - waiting room -> lobby
+   - starting room -> starting/loading state
+   - Fastest Finger -> current ordering round
+   - Hot Seat -> current question/reveal/lifeline state
+   - completed -> final results
+4. If no active room is found, the normal logged-in home screen appears.
+
+Important:
+- Refresh does not call Leave Room.
+- Leave Room is the intentional action that marks a player as gone.
+- After a game starts, a player who intentionally leaves still cannot rejoin that same game.
+- Used lifelines, submitted Fastest Finger orders, selected/final answers, removed 50:50 answers, and audience percentages are restored from server state.
+
+## Founder Access
+
+Founder Access is a separate owner/admin unlock from normal username/PIN login.
+
+How to use it:
+1. Log in normally with an existing account.
+2. Go to the logged-in home/profile area.
+3. Open the Founder Access panel.
+4. Enter the private founder username, private founder display name, and private founder phrase/password.
+5. Submit the form.
+6. If the details are correct, the current account becomes an admin and admin tools appear.
+
+Important:
+- Normal login still uses username plus 4-digit PIN.
+- Founder Access works only after login.
+- Founder Access needs these server-only Vercel environment variables:
+  - `FOUNDER_ACCESS_USERNAME`
+  - `FOUNDER_ACCESS_DISPLAY_NAME`
+  - `FOUNDER_ACCESS_PHRASE`
+- The founder phrase should not be pasted into project notes, screenshots, or support messages.
+- Five wrong Founder Access attempts blocks Founder Access for 10 minutes on that account.
+- Admin APIs remain protected server-side by `accounts.is_admin`.
+
+If Founder Access fails:
+1. Confirm you are already logged in.
+2. Re-enter the private founder details exactly.
+3. If too many wrong attempts were made, wait 10 minutes.
+4. As a fallback, an owner can make an account admin directly in Supabase by setting `accounts.is_admin = true` for the correct account row.

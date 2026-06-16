@@ -688,3 +688,58 @@ Production browser checks at `https://playsgrid.org`:
 
 Known limitation observed:
 - Reloading the browser during an active game still returns the player to home because active-room restoration is not implemented. Rejoining the already-started room is blocked by existing game rules. This should be considered a future repair item, not part of this UI flow cleanup.
+
+## 2026-06-16 - Active Game Restore / Refresh Recovery Repair
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run question:audit` - passed. Existing Node module-type warning appeared for the Fastest Finger seed file, but the audit passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - first sandboxed run hit a Windows/OneDrive `EPERM` lock while replacing a generated `.next` file; rerun with normal filesystem access passed.
+
+Local verification:
+- `http://127.0.0.1:3000` returned HTTP 200.
+- Local `/api/account/session` returned setup-required because local Supabase secrets are not available to the dev server in this environment, so a full local account/game restore flow could not be completed locally.
+
+Code-path verification:
+- Added `/api/rooms/active`, which returns only the current logged-in account's active room where the player has not intentionally left.
+- Startup/login restore calls `/api/rooms/active` and routes the player into the existing room/game rendering path.
+- Existing safe Fastest Finger and Hot Seat APIs are still used to reload current round, submitted order, selected answer, final answer, removed 50:50 answers, Ask The Audience percentages, Pass state, and reveal state.
+- The Hot Seat public response still keeps `correctAnswer` null until reveal.
+- Intentional Leave Room still calls the leave endpoint and sets the server-side left state; refresh does not call that endpoint.
+
+Manual production checks still required after deployment:
+- Refresh on logged-in home.
+- Refresh in lobby.
+- Refresh during Fastest Finger before submitting.
+- Refresh during Fastest Finger after submitting.
+- Refresh during Hot Seat as the current player.
+- Refresh during Hot Seat as another active room member.
+- Refresh after using 50:50.
+- Refresh after using Ask The Audience.
+- Refresh after using Pass.
+- Refresh on completed results.
+- Confirm intentional Leave Room still works and post-start intentional leave still blocks rejoin.
+
+## 2026-06-17 - Founder Access Unlock
+
+Checks run:
+- `npm.cmd run typecheck` - first run caught a parsed JSON body type mismatch in the Founder Access route; passed after fixing it.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run question:audit` - passed. Existing Node module-type warning appeared for the Fastest Finger seed file, but the audit passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Security/static verification:
+- Searched `.next/static` and `public` for the exact founder phrase and founder credentials. No matches were found in browser/static assets.
+- Founder Access validation is handled by `/api/account/founder-access`, a server route that requires an existing logged-in session and server-only founder environment variables.
+- Existing admin question APIs still check `account.isAdmin` server-side.
+
+Manual production checks still required after deployment:
+- Confirm Vercel has `FOUNDER_ACCESS_USERNAME`, `FOUNDER_ACCESS_DISPLAY_NAME`, and `FOUNDER_ACCESS_PHRASE` set for production.
+- Wrong Founder Access details are rejected with "Invalid founder access details".
+- Five wrong Founder Access attempts trigger a 10-minute lockout.
+- Correct Founder Access details set the current logged-in account to admin.
+- The session/profile refresh shows admin tools after unlock.
+- A normal non-admin account cannot see admin tools and still receives `403` from admin APIs.

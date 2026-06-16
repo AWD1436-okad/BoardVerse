@@ -348,3 +348,37 @@ What has been changed locally:
 
 Known limitation still present:
 - A full browser refresh during an active game does not automatically restore the player into the active room. The player can return home, and rejoining an already-started game is blocked by the existing game rules. A future repair should add an explicit "resume active room" path for active players.
+
+## 2026-06-16 - Active Game Restore / Refresh Recovery Repair
+
+Completed:
+- Added a server-side active-room restore lookup for the logged-in account.
+- Browser refresh/session startup now checks whether the player is still active in a room before showing the normal home screen.
+- Active rooms restore into the existing state-based game screens:
+  - `waiting` restores to the lobby.
+  - `starting` restores to a focused starting/loading screen.
+  - `fastest_finger` restores to the Fastest Finger screen and reloads the current round/submission state.
+  - `hot_seat` restores to the Hot Seat screen and reloads the current question, selected answer, used lifelines, removed answers, audience result, and reveal state.
+  - `completed` restores to Final Results.
+- Intentional Leave Room remains the only action that sets `left_at` and blocks post-start rejoin. A browser refresh does not mark the player as having left.
+- Added a clean "Restoring your game..." loading panel during startup/login restore.
+
+Current recommendation:
+- This repair removes the major refresh/reconnect risk for active players who have not intentionally left.
+- The next family test should specifically include refreshes during lobby, Fastest Finger, Hot Seat, used lifelines, and completed results.
+
+## 2026-06-17 - Founder Access Unlock Added
+
+Completed:
+- Added a separate logged-in-only Founder Access panel inside the profile/home area.
+- Added a server-only Founder Access endpoint that validates the founder details from server-only environment variables before changing the current account.
+- Successful Founder Access sets the current logged-in account's `is_admin` value to `true`, refreshes the local account state, shows "Founder access enabled", and opens admin tools.
+- Wrong Founder Access details return "Invalid founder access details".
+- Founder Access has the same basic lockout shape as PIN login: 5 failed attempts blocks attempts for 10 minutes.
+- Normal username/PIN login is unchanged.
+- Existing admin APIs still require `account.isAdmin === true` server-side.
+
+Security note:
+- Founder Access details are checked server-side.
+- Founder Access requires `FOUNDER_ACCESS_USERNAME`, `FOUNDER_ACCESS_DISPLAY_NAME`, and `FOUNDER_ACCESS_PHRASE` to be set in Vercel.
+- The founder phrase is not documented in project memory and is not included in browser/static assets.

@@ -331,3 +331,63 @@ export async function updateDisplayName(
   return publicAccount(account, stats);
 }
 
+export function founderAttemptKey(accountId: string) {
+  return `founder:${accountId}`;
+}
+
+export async function getFounderAccessLockout(
+  supabase: SupabaseClient,
+  accountId: string,
+) {
+  const attempt = await getAttempt(supabase, founderAttemptKey(accountId));
+
+  return {
+    isLocked: isLocked(attempt),
+    lockedUntil: attempt?.locked_until ?? null,
+  };
+}
+
+export async function recordFailedFounderAccess(
+  supabase: SupabaseClient,
+  accountId: string,
+) {
+  await recordFailedAttempt(supabase, founderAttemptKey(accountId));
+}
+
+export async function clearFounderAccessAttempts(
+  supabase: SupabaseClient,
+  accountId: string,
+) {
+  await clearFailedAttempts(supabase, founderAttemptKey(accountId));
+}
+
+export async function enableAccountAdmin(
+  supabase: SupabaseClient,
+  accountId: string,
+) {
+  const { data: account, error } = await supabase
+    .from("accounts")
+    .update({ is_admin: true, updated_at: new Date().toISOString() })
+    .eq("id", accountId)
+    .select("id, username, display_name, is_admin, pin_hash, created_at")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const { data: stats, error: statsError } = await supabase
+    .from("account_stats")
+    .select(
+      "games_played, wins, ties, highest_prize_won, total_money_won, fastest_finger_wins, questions_answered_correctly",
+    )
+    .eq("account_id", account.id)
+    .maybeSingle();
+
+  if (statsError) {
+    throw statsError;
+  }
+
+  return publicAccount(account, stats);
+}
+

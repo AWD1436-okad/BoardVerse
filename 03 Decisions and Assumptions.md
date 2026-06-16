@@ -69,6 +69,8 @@
 - Treat Milestone 11 as the first complete family-testing version unless serious bugs are found.
 - After v1.0, normal player UI must be state-based: logged-out users see only account entry, logged-in users outside a room see only home/profile and room actions, waiting rooms see only lobby controls, active gameplay screens see only that gameplay state, and completed games see only final results and return options.
 - Admin question tools stay hidden by default and only appear behind an admin-only section for accounts where `is_admin = true`.
+- Refresh/reconnect is separate from intentional leaving. Startup/login restore checks active server membership and reloads the correct room/game screen, while the Leave Room button is the action that sets `left_at` and applies post-start rejoin blocking.
+- Founder Access is separate from normal login. It is available only after a user is already logged in, validates server-side against server-only environment variables, rate-limits failed attempts, and only then sets the current account's `is_admin` flag.
 
 ## Open Risks
 
@@ -84,3 +86,4 @@
 - Lifeline updates currently use sequential server operations rather than one transaction. This is acceptable for the private MVP, but 50:50, Pass, and reveal transitions should eventually move into Postgres functions for stronger consistency under simultaneous clicks.
 - Result finalization currently uses sequential server operations protected by a room-level finalization timestamp. This prevents duplicate stat updates for normal refresh/retry behavior, but a future Postgres function would make the whole finalization fully transactional.
 - First family testing may reveal question-quality issues because the 1,200-question bank is generated and only automatically audited; reported questions should be reviewed regularly by an admin.
+- Founder Access is intentionally simple for private owner use. If the app becomes broader than family testing, replace it with an environment-variable-backed owner bootstrap or a manual Supabase admin assignment process.

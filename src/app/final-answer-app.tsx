@@ -292,6 +292,7 @@ export function FinalAnswerApp() {
   const [missingSetup, setMissingSetup] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [restoringGame, setRestoringGame] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
   const [fastestFinger, setFastestFinger] = useState<FastestFingerState | null>(
     null,
@@ -326,6 +327,9 @@ export function FinalAnswerApp() {
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPin, setLoginPin] = useState("");
   const [displayNameDraft, setDisplayNameDraft] = useState("");
+  const [founderUsername, setFounderUsername] = useState("");
+  const [founderDisplayName, setFounderDisplayName] = useState("");
+  const [founderPhrase, setFounderPhrase] = useState("");
   const [roomPlayerCount, setRoomPlayerCount] = useState(2);
   const [joinCode, setJoinCode] = useState("");
   const [questionLevel, setQuestionLevel] = useState(1);
@@ -366,7 +370,7 @@ export function FinalAnswerApp() {
         setAccount(data.account);
         setDisplayNameDraft(data.account.displayName);
         setActivePanel("home");
-        setMessage(`Welcome back, ${data.account.displayName}.`);
+        await restoreActiveRoom(data.account, `Welcome back, ${data.account.displayName}.`);
       }
     }
 
@@ -379,6 +383,8 @@ export function FinalAnswerApp() {
     return () => {
       cancelled = true;
     };
+    // Startup restore must run once after the browser loads the saved session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -487,6 +493,64 @@ export function FinalAnswerApp() {
     setMessage(data.message || fallback);
   }
 
+  async function restoreActiveRoom(
+    currentAccount: Account,
+    fallbackMessage: string,
+  ) {
+    setRestoringGame(true);
+    setMessage("Restoring your game...");
+
+    try {
+      const response = await fetch("/api/rooms/active");
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok) {
+        showApiError(
+          data,
+          "Could not restore your active game. You are back home.",
+        );
+        setRoom(null);
+        setFastestFinger(null);
+        setHotSeat(null);
+        setGameResults([]);
+        return;
+      }
+
+      const restoredRoom = data.room;
+      const stillActive = restoredRoom?.players.some(
+        (player) => player.accountId === currentAccount.id && !player.leftAt,
+      );
+
+      if (!restoredRoom || !stillActive) {
+        setRoom(null);
+        setFastestFinger(null);
+        setHotSeat(null);
+        setGameResults([]);
+        setMessage(fallbackMessage);
+        return;
+      }
+
+      setRoom(restoredRoom);
+      setFastestFinger(null);
+      setHotSeat(null);
+      setGameResults([]);
+      setActivePanel("home");
+      setMessage(
+        restoredRoom.status === "waiting"
+          ? `Restored room ${restoredRoom.code}.`
+          : `Restored your game in room ${restoredRoom.code}.`,
+      );
+    } catch {
+      setRoom(null);
+      setFastestFinger(null);
+      setHotSeat(null);
+      setGameResults([]);
+      setMessage("Could not restore your active game. You are back home.");
+    } finally {
+      setRestoringGame(false);
+    }
+  }
+
   async function submitSignup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -560,7 +624,7 @@ export function FinalAnswerApp() {
       setDisplayNameDraft(data.account.displayName);
       setLoginPin("");
       setActivePanel("home");
-      setMessage(`Logged in as ${data.account.displayName}.`);
+      await restoreActiveRoom(data.account, `Logged in as ${data.account.displayName}.`);
     } catch {
       setMessage("Could not log in. Check the connection and try again.");
     } finally {
@@ -596,6 +660,48 @@ export function FinalAnswerApp() {
     }
   }
 
+  async function submitFounderAccess(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!account) {
+      setMessage("Log in before using Founder Access.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/account/founder-access", {
+        body: JSON.stringify({
+          displayName: founderDisplayName,
+          founderPhrase,
+          username: founderUsername,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !data.account) {
+        showApiError(data, "Invalid founder access details");
+        return;
+      }
+
+      setAccount(data.account);
+      setDisplayNameDraft(data.account.displayName);
+      setFounderUsername("");
+      setFounderDisplayName("");
+      setFounderPhrase("");
+      setShowAdminTools(true);
+      setMessage("Founder access enabled");
+    } catch {
+      setMessage("Invalid founder access details");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function logout() {
     setBusy(true);
     setMessage("");
@@ -609,6 +715,9 @@ export function FinalAnswerApp() {
       setShowAdminTools(false);
       setActivePanel("welcome");
       setDisplayNameDraft("");
+      setFounderUsername("");
+      setFounderDisplayName("");
+      setFounderPhrase("");
       setLoginPin("");
       setSignupPin("");
       setMessage("Logged out.");
@@ -1431,6 +1540,8 @@ export function FinalAnswerApp() {
                     submitLogin={submitLogin}
                     submitSignup={submitSignup}
                   />
+                ) : restoringGame ? (
+                  <RestoreGamePanel />
                 ) : activePanel === "create-room" || activePanel === "join-room" ? (
                   <RoomActionPanel
                     account={account}
@@ -1452,8 +1563,14 @@ export function FinalAnswerApp() {
                     account={account}
                     busy={busy}
                     displayNameDraft={displayNameDraft}
+                    founderDisplayName={founderDisplayName}
+                    founderPhrase={founderPhrase}
+                    founderUsername={founderUsername}
                     joinedDate={joinedDate}
                     onDisplayNameChange={setDisplayNameDraft}
+                    onFounderDisplayNameChange={setFounderDisplayName}
+                    onFounderPhraseChange={setFounderPhrase}
+                    onFounderUsernameChange={setFounderUsername}
                     onLogout={logout}
                     onOpenAdmin={() => setShowAdminTools((value) => !value)}
                     onSelectPanel={(panel) => {
@@ -1461,6 +1578,7 @@ export function FinalAnswerApp() {
                       setShowAdminTools(false);
                       setMessage("");
                     }}
+                    onSubmitFounderAccess={submitFounderAccess}
                     onSubmitDisplayName={submitDisplayName}
                     showAdminTools={showAdminTools}
                     stats={stats}
@@ -1525,6 +1643,26 @@ function BrandIntro() {
         room, share the code, race through Fastest Finger, then take the Hot
         Seat under the lights.
       </p>
+    </section>
+  );
+}
+
+function RestoreGamePanel() {
+  return (
+    <section className="border border-[#f6d37a]/45 bg-[#061733]/92 p-5 shadow-[0_0_45px_rgba(246,211,122,0.14)]">
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+        Reconnecting
+      </p>
+      <h2 className="mt-3 text-3xl font-black text-white">
+        Restoring your game...
+      </h2>
+      <p className="mt-3 text-sm font-bold leading-6 text-blue-100/72">
+        Checking whether you are still in an active room and loading the right
+        game screen.
+      </p>
+      <div className="mt-5 h-3 overflow-hidden border border-[#f6d37a]/45 bg-[#020712]">
+        <div className="h-full w-2/3 animate-pulse bg-[linear-gradient(90deg,#f6d37a,#ff9f2f,#ffffff)] shadow-[0_0_24px_rgba(255,159,47,0.85)]" />
+      </div>
     </section>
   );
 }
@@ -1648,12 +1786,19 @@ function LoggedInHome(props: {
   account: Account;
   busy: boolean;
   displayNameDraft: string;
+  founderDisplayName: string;
+  founderPhrase: string;
+  founderUsername: string;
   joinedDate: string;
   onDisplayNameChange: (value: string) => void;
+  onFounderDisplayNameChange: (value: string) => void;
+  onFounderPhraseChange: (value: string) => void;
+  onFounderUsernameChange: (value: string) => void;
   onLogout: () => void;
   onOpenAdmin: () => void;
   onSelectPanel: (panel: Panel) => void;
   onSubmitDisplayName: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmitFounderAccess: (event: FormEvent<HTMLFormElement>) => void;
   showAdminTools: boolean;
   stats: AccountStats;
 }) {
@@ -1663,9 +1808,16 @@ function LoggedInHome(props: {
         account={props.account}
         busy={props.busy}
         displayNameDraft={props.displayNameDraft}
+        founderDisplayName={props.founderDisplayName}
+        founderPhrase={props.founderPhrase}
+        founderUsername={props.founderUsername}
         joinedDate={props.joinedDate}
         onDisplayNameChange={props.onDisplayNameChange}
+        onFounderDisplayNameChange={props.onFounderDisplayNameChange}
+        onFounderPhraseChange={props.onFounderPhraseChange}
+        onFounderUsernameChange={props.onFounderUsernameChange}
         onSubmitDisplayName={props.onSubmitDisplayName}
+        onSubmitFounderAccess={props.onSubmitFounderAccess}
         stats={props.stats}
       />
 
@@ -1870,6 +2022,30 @@ function RoomLobby(props: {
     (player) => player.accountId === props.room.hostAccountId,
   );
   const waiting = props.room.status === "waiting";
+
+  if (props.room.status === "starting") {
+    return (
+      <div className="grid gap-4">
+        <GameStatusStrip
+          hostName={hostPlayer?.displayName ?? "Host"}
+          playerCount={activePlayers.length}
+          roomCode={props.room.code}
+          status="Starting"
+        />
+        <div className="border border-[#f6d37a]/35 bg-[#061733]/92 p-4">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+            Game starting
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-white">
+            Restoring your game...
+          </h2>
+          <p className="mt-2 text-sm font-bold leading-6 text-blue-100/72">
+            The room is locking players and preparing Fastest Finger First.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (props.room.status === "completed") {
     return (
@@ -2912,9 +3088,16 @@ function ProfilePanel(props: {
   account: Account;
   busy: boolean;
   displayNameDraft: string;
+  founderDisplayName: string;
+  founderPhrase: string;
+  founderUsername: string;
   joinedDate: string;
   onDisplayNameChange: (value: string) => void;
+  onFounderDisplayNameChange: (value: string) => void;
+  onFounderPhraseChange: (value: string) => void;
+  onFounderUsernameChange: (value: string) => void;
   onSubmitDisplayName: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmitFounderAccess: (event: FormEvent<HTMLFormElement>) => void;
   stats: AccountStats;
 }) {
   return (
@@ -2950,6 +3133,71 @@ function ProfilePanel(props: {
           </button>
         </form>
       </div>
+
+      <form
+        className="border border-[#244b91] bg-[#050f25] p-4"
+        onSubmit={props.onSubmitFounderAccess}
+      >
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+          Founder Access
+        </p>
+        <h3 className="mt-3 text-2xl font-black text-white">
+          {props.account.isAdmin ? "Admin enabled" : "Unlock admin tools"}
+        </h3>
+        <p className="mt-2 text-sm font-bold leading-6 text-blue-100/68">
+          This is separate from normal login and only works after you are signed
+          in.
+        </p>
+        {!props.account.isAdmin ? (
+          <div className="mt-4 grid gap-3">
+            <label className="block text-sm font-bold text-blue-50">
+              Founder username
+              <input
+                className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 font-mono text-sm text-white outline-none transition placeholder:text-blue-100/32 focus:border-[#f6d37a]"
+                onChange={(event) =>
+                  props.onFounderUsernameChange(event.target.value)
+                }
+                placeholder="Enter founder username"
+                value={props.founderUsername}
+              />
+            </label>
+            <label className="block text-sm font-bold text-blue-50">
+              Founder display name
+              <input
+                className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 font-mono text-sm text-white outline-none transition placeholder:text-blue-100/32 focus:border-[#f6d37a]"
+                onChange={(event) =>
+                  props.onFounderDisplayNameChange(event.target.value)
+                }
+                placeholder="Enter founder display name"
+                value={props.founderDisplayName}
+              />
+            </label>
+            <label className="block text-sm font-bold text-blue-50">
+              Founder phrase/password
+              <input
+                className="mt-2 w-full border border-[#244b91] bg-[#020712] px-3 py-3 text-white outline-none transition placeholder:text-blue-100/32 focus:border-[#f6d37a]"
+                onChange={(event) =>
+                  props.onFounderPhraseChange(event.target.value)
+                }
+                placeholder="Enter founder phrase"
+                type="password"
+                value={props.founderPhrase}
+              />
+            </label>
+            <button
+              className="border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225] disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={props.busy}
+              type="submit"
+            >
+              Enable Founder Access
+            </button>
+          </div>
+        ) : (
+          <p className="mt-4 border border-emerald-300/55 bg-emerald-950/40 px-3 py-3 text-sm font-black text-emerald-100">
+            Founder access enabled
+          </p>
+        )}
+      </form>
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {statLabels.map(([key, label]) => (
