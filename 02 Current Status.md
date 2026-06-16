@@ -382,3 +382,26 @@ Security note:
 - Founder Access details are checked server-side.
 - Founder Access requires `FOUNDER_ACCESS_USERNAME`, `FOUNDER_ACCESS_DISPLAY_NAME`, and `FOUNDER_ACCESS_PHRASE` to be set in Vercel.
 - The founder phrase is not documented in project memory and is not included in browser/static assets.
+
+## 2026-06-17 - Founder Access and Refresh Restore Production Verification
+
+Verified:
+- Logged-out requests to Founder Access are blocked.
+- Normal non-admin accounts cannot call admin APIs.
+- Public HTML, source/docs scan, and built browser assets do not contain the exact founder values.
+- Vercel production runtime logs showed no recent errors.
+- Active-room restore works through the production API for:
+  - waiting lobby
+  - Fastest Finger
+  - Hot Seat
+  - Hot Seat after 50:50 and Ask The Audience
+- Hot Seat pre-reveal responses did not expose the correct answer.
+- Intentional Leave before start allows rejoin.
+- Intentional Leave after start blocks rejoin.
+
+Blocked:
+- Successful Founder Access unlock could not be production-verified because this Vercel project still does not show the required `FOUNDER_ACCESS_USERNAME`, `FOUNDER_ACCESS_DISPLAY_NAME`, or `FOUNDER_ACCESS_PHRASE` variables in the Production environment.
+- Production `/api/account/founder-access` returns `founder_access_unconfigured` while those variables are missing.
+
+Next action:
+- Add the three Founder Access variables to the `boardverse` Vercel project under Production, redeploy, then rerun Founder Access verification.

@@ -747,3 +747,39 @@ Manual production checks still required after deployment:
 - Correct Founder Access details set the current logged-in account to admin.
 - The session/profile refresh shows admin tools after unlock.
 - A normal non-admin account cannot see admin tools and still receives `403` from admin APIs.
+
+## 2026-06-17 - Founder Access and Active Game Restore Production Verification
+
+Checks run locally:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run question:audit` - passed. Existing Fastest Finger seed module-type warning appeared, but the audit passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Founder Access production verification:
+- Logged-out POST to `/api/account/founder-access` returned `401 not_logged_in` - passed.
+- Normal throwaway account had `isAdmin = false` after signup - passed.
+- Normal throwaway account calling `/api/admin/questions` returned `403` - passed.
+- Public `https://playsgrid.org` HTML returned HTTP 200 and did not contain the exact founder values - passed.
+- Local source, project docs, public files, and built `.next/static` assets did not contain the exact founder values - passed.
+- Vercel production runtime error/fatal log scan for the last hour returned no logs - passed.
+- Wrong Founder Access and correct Founder Access both returned `503 founder_access_unconfigured` because the required Founder Access Production env vars are not present in the linked Vercel project - blocked.
+- `npx.cmd vercel env ls production` still lists only Supabase variables for this project - blocked.
+
+Active-game refresh restore production verification:
+- Created throwaway production accounts and rooms.
+- `/api/rooms/active` restored a waiting room as `waiting` - passed.
+- Started a room and `/api/rooms/active` restored it as `fastest_finger` - passed.
+- Fastest Finger public response did not expose `correct_order` or `correctOrder` - passed.
+- Drove a fresh throwaway room to Hot Seat and `/api/rooms/active` restored both players as `hot_seat` - passed.
+- Hot Seat pre-reveal public response did not expose `correct_answer` or a filled A/B/C/D `correctAnswer` - passed.
+- 50:50 returned success, persisted `used5050 = true`, and persisted exactly 2 removed answers - passed.
+- Ask The Audience returned success, persisted `usedAudience = true`, and percentages totaled 100 - passed.
+- `/api/rooms/active` still restored `hot_seat` after lifelines - passed.
+- Intentional Leave before game start returned 200 and rejoin by code returned 200 - passed.
+- Intentional Leave after game start returned 200 and rejoin by code returned 409 `game_already_started` - passed.
+
+Conclusion:
+- Active-game refresh restore is ready for family testing.
+- Founder Access code and guardrails are deployed, but successful admin unlock is not ready until the three Founder Access Production environment variables are added to the correct Vercel project and redeployed.
