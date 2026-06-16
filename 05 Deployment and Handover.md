@@ -376,4 +376,6 @@ For a question-quality fix:
 - Hot Seat players can now use 50:50, Ask The Audience, and Pass.
 - The 1,200-question generation/import process exists, but owner review is still needed before broad family use.
 - Normal-user temporary debug and question-test panels are hidden.
+- The player UI is now state-based so logged-out, home, room setup, lobby, Fastest Finger, Hot Seat, completed results, and admin tools do not all appear on one mixed page.
+- Reloading the browser during an active game still does not automatically restore the active room. This should be fixed with a future "resume active room" flow before relying on refresh/reconnect during family testing.
 - Start Game should eventually become a single Postgres transaction/function to reduce partial-update risk.

@@ -328,9 +328,9 @@ Current recommendation:
 - Use the manual checklist in `05 Deployment and Handover.md` during the first real family game session.
 - Log any confusing wording, wrong answers, or gameplay bugs and address them as small repair tasks before adding new features.
 
-## 2026-06-16 - Post-v1 UX Flow Repair
+## 2026-06-16 - Post-v1 UX Flow Repair Completed
 
-Work in progress:
+Completed:
 - New feature work is paused.
 - The public app shell is being reorganized around the player's current state so the app feels like a real game flow instead of a developer test page.
 
@@ -342,7 +342,9 @@ What has been changed locally:
 - Waiting lobbies show room code, players, ready state, Ready, Leave Room, and host Start Game only.
 - Fastest Finger, Hot Seat, and completed results now render as separate game screens instead of sharing lobby controls.
 - The old landing feature blocks, Fastest Finger preview, and static ladder preview were removed from normal player screens.
+- A realtime leave-room race was fixed so a player who leaves a room is not pulled back into a stale lobby by a room event refresh.
+- Production deployment reached Ready on Vercel.
+- Live logged-out, logged-in home, focused create/join, waiting lobby, Fastest Finger, Hot Seat, completed results, normal-user admin hiding, desktop, and mobile checks passed on `https://playsgrid.org`.
 
-Still to verify before completion:
-- Production deployment reaches Ready.
-- Live logged-out, logged-in, room, lobby, gameplay, completed, admin-hidden, desktop, and mobile checks pass on `https://playsgrid.org`.
+Known limitation still present:
+- A full browser refresh during an active game does not automatically restore the player into the active room. The player can return home, and rejoining an already-started game is blocked by the existing game rules. A future repair should add an explicit "resume active room" path for active players.

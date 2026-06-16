@@ -663,11 +663,28 @@ Local browser checks at `http://127.0.0.1:3000`:
 - Create Account opens a focused account form with Back.
 - Local account completion could not be tested because local Supabase secrets are intentionally not present in `.env.local`.
 
-Production checks still required:
-- Logged-in home shows only profile/stats, Create Room, Join Room, Log Out, and admin-only tools when applicable.
-- Create Room and Join Room show focused room setup screens.
-- Waiting lobby, Fastest Finger, Hot Seat, completed results, admin hiding, desktop, and mobile layout pass on `https://playsgrid.org` after deployment.
-
 Production issue found during first live verification:
 - After leaving a waiting room, a realtime refresh could reload the same room even though the player was no longer active in it.
 - Fix added: room refresh now checks whether the current account is still an active room player. If not, it clears the room/game state and returns the player to home.
+
+Final production deployment:
+- Commit `b1dbf565ea337adb0b4d65ad5d10faf0320d1a19` deployed to Vercel as `dpl_9dRuEr6aoRUrg4DSYGNs35Wuwdhs`.
+- Vercel status: Ready.
+- Aliases included `playsgrid.org` and `www.playsgrid.org`.
+
+Production browser checks at `https://playsgrid.org`:
+- Logged-out screen showed only Final Answer branding, short explanation, Create Account, and Log In.
+- Logged-in home showed profile/stats, Create Room, Join Room, and Log Out.
+- Normal non-admin account did not show Question Review or admin tools.
+- Create Room opened a focused screen with player count, Create Room, and Cancel; it did not show Join Room or Log In.
+- Join Room opened a focused screen with room code, Join Room, and Cancel; it did not show Create Room or Log In.
+- Waiting lobby showed Ready, disabled Start Game when not ready/full, enabled Start Game when full/ready, and Leave Room only.
+- Waiting lobby did not show Create Room, Join Room, Log In, profile save controls, question review, or Refresh Room.
+- Leaving a waiting room returned the player to logged-in home and did not reload the stale room.
+- Fastest Finger screen showed the ordering UI, timer/submission controls, and small room status only; it did not show lobby/home controls or lifelines.
+- Hot Seat screen showed question, answers, prize ladder, lifelines, report question, and waiting/final-answer controls only; it did not show create/join, ready/start, or Fastest Finger controls.
+- Completed screen showed Final Results and Return Home only; it did not show active game, lobby, create, or join controls.
+- Mobile viewport at 390 x 844 showed the logged-out screen cleanly with no horizontal overflow.
+
+Known limitation observed:
+- Reloading the browser during an active game still returns the player to home because active-room restoration is not implemented. Rejoining the already-started room is blocked by existing game rules. This should be considered a future repair item, not part of this UI flow cleanup.

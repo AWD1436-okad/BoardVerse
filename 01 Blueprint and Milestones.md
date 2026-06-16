@@ -211,7 +211,7 @@ Implementation note:
 - Prepared the manual family testing checklist and launch handover notes.
 - Sound effects and chat remain future improvements rather than launch blockers.
 
-### Post-v1 UX Flow Repair - In Progress 2026-06-16
+### Post-v1 UX Flow Repair - Completed 2026-06-16
 
 Goal:
 - Stop feature work and reorganize the player journey so Final Answer feels like a real online quiz game rather than a single page of mixed controls.
@@ -221,3 +221,9 @@ Implementation direction:
 - Controls are only visible when they match the current player state.
 - Existing backend APIs, Supabase schema, and core game logic stay intact.
 - Admin tools remain available only to admin accounts and hidden by default.
+
+Implementation note:
+- The main app shell now uses state-based screen rendering instead of always showing account and room actions together.
+- A stale realtime refresh after leaving a room now clears the room state when the current account is no longer an active player.
+- Production browser checks passed for logged out, logged in home, create/join flows, waiting lobby, Fastest Finger, Hot Seat, completed results, admin hiding, and mobile layout.
+- Active-game restoration after a full browser refresh remains a future repair item.
