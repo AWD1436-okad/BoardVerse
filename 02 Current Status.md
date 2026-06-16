@@ -405,3 +405,26 @@ Blocked:
 
 Next action:
 - Add the three Founder Access variables to the `boardverse` Vercel project under Production, redeploy, then rerun Founder Access verification.
+
+## 2026-06-17 - Founder Access Reverification After Variable Names Added
+
+Verified:
+- Vercel Production now lists the three Founder Access variable names for the linked `boardverse` project.
+- A clean production redeploy was triggered after confirming the variable names were present.
+- `https://playsgrid.org` still loads successfully.
+- Logged-out requests to Founder Access are blocked with `401 not_logged_in`.
+- New normal accounts are created with `isAdmin = false`.
+- Normal non-admin accounts are still blocked from admin question APIs with `403 admin_only`.
+- Public HTML and local browser/static build assets do not contain the exact founder values.
+- Recent Vercel production logs show request paths and statuses only; the founder values were not printed in log messages.
+
+Blocked:
+- Wrong Founder Access details still return `503 founder_access_unconfigured` instead of `401 invalid_founder_access`.
+- Correct Founder Access details still return `503 founder_access_unconfigured` instead of enabling admin access.
+- The 5-attempt Founder Access lockout cannot be verified while the route exits early as unconfigured.
+- Admin tools appearing after Founder Access cannot be verified until the successful unlock path works.
+
+Conclusion:
+- Founder Access is not fully working in production yet.
+- Because Vercel lists the variable names but the server still sees the Founder Access config as missing, at least one of the three Production values is likely blank, saved incorrectly, or unavailable to the runtime.
+- Re-enter the three Founder Access values in Vercel Production, save them as non-empty values, redeploy, and rerun verification.

@@ -783,3 +783,39 @@ Active-game refresh restore production verification:
 Conclusion:
 - Active-game refresh restore is ready for family testing.
 - Founder Access code and guardrails are deployed, but successful admin unlock is not ready until the three Founder Access Production environment variables are added to the correct Vercel project and redeployed.
+
+## 2026-06-17 - Founder Access Reverification After Vercel Variable Names Appeared
+
+Checks run:
+- `npm.cmd run typecheck` - passed.
+- `npm.cmd run lint` - passed.
+- `npm.cmd run question:audit` - passed. Existing Fastest Finger seed module-type warning appeared, but the audit passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Deployment/env verification:
+- `npx.cmd vercel env ls production` now lists:
+  - `FOUNDER_ACCESS_USERNAME`
+  - `FOUNDER_ACCESS_DISPLAY_NAME`
+  - `FOUNDER_ACCESS_PHRASE`
+  - existing Supabase variables
+- A clean Vercel Production redeploy was triggered after the env-name check.
+- Deployment `dpl_AGjDbE9gXVwjh6tXuU6icZkJ3uPn` reached `READY` and was aliased to `https://playsgrid.org`.
+
+Production Founder Access tests:
+- Logged-out POST to `/api/account/founder-access` returned `401 not_logged_in` - passed.
+- Normal throwaway signup returned `isAdmin = false` - passed.
+- Normal throwaway account calling `/api/admin/questions` returned `403 admin_only` - passed.
+- Public homepage HTML did not contain the exact founder values - passed.
+- Local source/docs/public/static build scan found zero exact founder-value matches - passed.
+- Recent Vercel production logs showed request paths and status codes only; no founder values appeared in log messages - passed.
+
+Blocked tests:
+- Wrong Founder Access details returned `503 founder_access_unconfigured` after the clean redeploy - blocked.
+- Correct Founder Access details returned `503 founder_access_unconfigured` after the clean redeploy - blocked.
+- Five-attempt Founder Access lockout could not be verified because the route exits before failed attempts are recorded when config is unconfigured.
+- Admin tools after successful Founder Access could not be verified because the unlock path is still blocked.
+
+Conclusion:
+- Founder Access is still not fully working in production.
+- Vercel shows the three variable names, but the live server still treats the Founder Access config as missing. The safest next step is to re-enter the three Founder Access values in Vercel Production, confirm each value field is non-empty, save, redeploy, and rerun this verification.

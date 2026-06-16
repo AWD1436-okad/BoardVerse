@@ -436,3 +436,9 @@ Production setup:
 4. Do not paste the private values into chat, code, screenshots, or project notes.
 5. Redeploy production after saving them.
 6. Log in normally, use Founder Access, and confirm admin tools appear.
+
+Troubleshooting current production setup:
+- Vercel may show the variable names even if a value was saved blank or not available to the current runtime.
+- If `/api/account/founder-access` returns `founder_access_unconfigured`, re-open each Founder Access environment variable in Vercel Production, re-enter the private value, save it, and redeploy.
+- The expected wrong-details response after setup is `invalid_founder_access`.
+- The expected correct-details response after setup is `Founder access enabled`, and the current account should then show admin tools.
