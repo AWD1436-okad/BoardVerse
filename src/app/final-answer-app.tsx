@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/final-answer/supabase-browser";
 
-type Panel = "signup" | "login" | "create-room" | "join-room";
+type Panel = "welcome" | "signup" | "login" | "home" | "create-room" | "join-room";
 type RoomStatus =
   | "waiting"
   | "starting"
@@ -217,36 +217,6 @@ type ApiResponse = {
   summary?: AdminQuestionSummary;
 };
 
-const ladder = [
-  "$1,000,000",
-  "$500,000",
-  "$250,000",
-  "$125,000",
-  "$64,000",
-  "$32,000",
-  "$16,000",
-  "$8,000",
-  "$4,000",
-  "$1,000",
-  "$500",
-  "$100",
-];
-
-const featurePanels = [
-  {
-    title: "Private Rooms",
-    text: "2-10 players, room-code entry, ready checks, and automatic host transfer.",
-  },
-  {
-    title: "Fastest Finger",
-    text: "A 30-second ordering challenge decides who takes the hot seat each round.",
-  },
-  {
-    title: "Three Lifelines",
-    text: "50:50, Ask The Audience, and Pass create strategy without copying protected assets.",
-  },
-];
-
 const emptyStats: AccountStats = {
   fastestFingerWins: 0,
   gamesPlayed: 0,
@@ -316,7 +286,7 @@ function isValidRoomCode(code: string) {
 }
 
 export function FinalAnswerApp() {
-  const [activePanel, setActivePanel] = useState<Panel>("signup");
+  const [activePanel, setActivePanel] = useState<Panel>("welcome");
   const [account, setAccount] = useState<Account | null>(null);
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [missingSetup, setMissingSetup] = useState<string[]>([]);
@@ -348,6 +318,7 @@ export function FinalAnswerApp() {
   const [adminQuestionActive, setAdminQuestionActive] = useState("all");
   const [adminQuestionSearch, setAdminQuestionSearch] = useState("");
   const [adminQuestionMinReports, setAdminQuestionMinReports] = useState(0);
+  const [showAdminTools, setShowAdminTools] = useState(false);
 
   const [signupUsername, setSignupUsername] = useState("");
   const [signupDisplayName, setSignupDisplayName] = useState("");
@@ -394,6 +365,7 @@ export function FinalAnswerApp() {
       if (data.account) {
         setAccount(data.account);
         setDisplayNameDraft(data.account.displayName);
+        setActivePanel("home");
         setMessage(`Welcome back, ${data.account.displayName}.`);
       }
     }
@@ -547,6 +519,7 @@ export function FinalAnswerApp() {
       setAccount(data.account);
       setDisplayNameDraft(data.account.displayName);
       setSignupPin("");
+      setActivePanel("home");
       setMessage(`Account created. Welcome, ${data.account.displayName}.`);
     } catch {
       setMessage("Could not create account. Check the connection and try again.");
@@ -586,6 +559,7 @@ export function FinalAnswerApp() {
       setAccount(data.account);
       setDisplayNameDraft(data.account.displayName);
       setLoginPin("");
+      setActivePanel("home");
       setMessage(`Logged in as ${data.account.displayName}.`);
     } catch {
       setMessage("Could not log in. Check the connection and try again.");
@@ -632,6 +606,8 @@ export function FinalAnswerApp() {
       setRoom(null);
       setFastestFinger(null);
       setHotSeat(null);
+      setShowAdminTools(false);
+      setActivePanel("welcome");
       setDisplayNameDraft("");
       setLoginPin("");
       setSignupPin("");
@@ -669,6 +645,7 @@ export function FinalAnswerApp() {
 
       setRoom(data.room);
       setGameResults([]);
+      setActivePanel("home");
       setMessage(`Room created. Share code ${data.room.code}.`);
     } catch {
       setMessage("Could not create room. Try again.");
@@ -709,6 +686,7 @@ export function FinalAnswerApp() {
       setRoom(data.room);
       setGameResults([]);
       setJoinCode(data.room.code);
+      setActivePanel("home");
       setMessage(`Joined room ${data.room.code}.`);
     } catch {
       setMessage("Could not join room. Try again.");
@@ -729,6 +707,21 @@ export function FinalAnswerApp() {
       if (!response.ok || !data.room) {
         if (showMessage) {
           showApiError(data, "Could not refresh room.");
+        }
+        return;
+      }
+
+      const accountStillActive = data.room.players.some(
+        (player) => player.accountId === account?.id && !player.leftAt,
+      );
+
+      if (account && !accountStillActive) {
+        setRoom(null);
+        setFastestFinger(null);
+        setHotSeat(null);
+        setGameResults([]);
+        if (showMessage) {
+          setMessage("You are no longer active in that room.");
         }
         return;
       }
@@ -814,6 +807,7 @@ export function FinalAnswerApp() {
     setFastestFinger(null);
     setHotSeat(null);
     setGameResults([]);
+    setActivePanel("home");
     setMessage("Returned home. Your completed-game stats are saved.");
   }
 
@@ -1336,104 +1330,18 @@ export function FinalAnswerApp() {
               </span>
             </span>
           </a>
-
-          {account ? (
-            <div className="flex items-center gap-3">
-              <span className="hidden text-right text-sm font-bold text-blue-100 sm:block">
-                {account.displayName}
-              </span>
-              <button
-                className="border border-[#f6d37a]/45 bg-[#0d2450]/80 px-4 py-3 text-sm font-black text-[#f6d37a] transition hover:border-[#f6d37a] hover:bg-[#12316a]"
-                disabled={busy}
-                onClick={logout}
-                type="button"
-              >
-                Log Out
-              </button>
-            </div>
-          ) : (
-            <a
-              className="hidden border border-[#f6d37a]/45 bg-[#0d2450]/80 px-4 py-3 text-sm font-black text-[#f6d37a] shadow-[0_0_22px_rgba(34,76,151,0.35)] transition hover:border-[#f6d37a] hover:bg-[#12316a] sm:inline-flex"
-              href="#account-panel"
-            >
-              Account
-            </a>
-          )}
         </header>
 
         <div
-          className="mx-auto grid max-w-7xl items-center gap-8 pb-10 pt-10 lg:min-h-[calc(100vh-92px)] lg:grid-cols-[1.02fr_0.98fr] lg:pt-0"
+          className={`mx-auto grid max-w-7xl gap-8 pb-10 pt-10 lg:min-h-[calc(100vh-92px)] lg:pt-0 ${
+            room
+              ? "items-start"
+              : "items-center lg:grid-cols-[1.02fr_0.98fr]"
+          }`}
           id="top"
         >
-          <section className="max-w-3xl">
-            <p className="text-xs font-black uppercase tracking-[0.32em] text-[#f6d37a]">
-              Original private quiz game
-            </p>
-            <h1 className="mt-5 text-5xl font-black leading-[0.91] tracking-normal text-white sm:text-7xl lg:text-8xl">
-              Final Answer
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-blue-100/86 sm:text-xl">
-              A polished browser quiz night for friends and family, with private
-              rooms, a fastest-finger challenge, lifelines, safety nets, and a
-              dramatic million-dollar ladder.
-            </p>
-
-            <div className="mt-7 grid gap-3 sm:grid-cols-2">
-              {[
-                ["signup", "Create Account", "Real account"],
-                ["login", "Log In", "PIN login"],
-                ["create-room", "Create Room", "Private room"],
-                ["join-room", "Join Room", "Room code"],
-              ].map(([panel, label, eyebrow]) => (
-                <button
-                  className={`group border px-5 py-4 text-left transition ${
-                    activePanel === panel
-                      ? "border-[#f6d37a] bg-[#f6d37a] text-[#081226] shadow-[0_0_32px_rgba(246,211,122,0.25)]"
-                      : "border-[#244b91] bg-[#071a3d]/82 text-white hover:border-[#f6d37a]/80 hover:bg-[#0d2c66]"
-                  }`}
-                  key={panel}
-                  onClick={() => {
-                    setActivePanel(panel as Panel);
-                    setMessage("");
-                  }}
-                  type="button"
-                >
-                  <span className="block text-[11px] font-black uppercase tracking-[0.2em] opacity-75">
-                    {eyebrow}
-                  </span>
-                  <span className="mt-1 block text-xl font-black">{label}</span>
-                </button>
-              ))}
-            </div>
-
-            {message && (
-              <div className="mt-4 border border-[#f6d37a]/35 bg-[#061733]/92 p-4 text-sm font-bold leading-6 text-blue-100">
-                {message}
-              </div>
-            )}
-
-            {configured === false && (
-              <div className="mt-4 border border-[#ff5e5e]/45 bg-[#320f18]/85 p-4 text-sm leading-6 text-red-50">
-                <p className="font-black text-white">
-                  Supabase setup required before accounts can save.
-                </p>
-                <p className="mt-2">
-                  Missing:{" "}
-                  <span className="font-mono text-[#f6d37a]">
-                    {missingSetup.join(", ") || "Supabase environment variables"}
-                  </span>
-                </p>
-              </div>
-            )}
-          </section>
-
-          <section
-            aria-label="Account and room panel"
-            className="relative border border-[#244b91] bg-[#040b19]/90 p-4 shadow-[14px_14px_0_rgba(214,161,50,0.18),0_0_60px_rgba(21,58,122,0.3)] sm:p-5"
-            id="account-panel"
-          >
-            <div className="absolute -inset-px -z-10 bg-gradient-to-br from-[#f6d37a]/40 via-transparent to-[#2457b7]/50 blur-xl" />
-            {room ? (
+          {room ? (
+            <section className="lg:col-span-2">
               <RoomLobby
                 account={account}
                 busy={busy}
@@ -1482,67 +1390,38 @@ export function FinalAnswerApp() {
                 hotSeatReportReason={hotSeatReportReason}
                 timerNow={timerNow}
               />
-            ) : activePanel === "create-room" || activePanel === "join-room" ? (
-              <RoomActionPanel
-                account={account}
-                activePanel={activePanel}
-                busy={busy}
-                joinCode={joinCode}
-                onCreateRoom={createRoom}
-                onJoinCodeChange={setJoinCode}
-                onJoinRoom={joinRoom}
-                onPlayerCountChange={setRoomPlayerCount}
-                playerCount={roomPlayerCount}
+              <StatusMessage
+                configured={configured}
+                message={message}
+                missingSetup={missingSetup}
               />
-            ) : account ? (
-              <div className="grid gap-4">
-                <ProfilePanel
-                  account={account}
-                  busy={busy}
-                  displayNameDraft={displayNameDraft}
-                  joinedDate={joinedDate}
-                  onDisplayNameChange={setDisplayNameDraft}
-                  onSubmitDisplayName={submitDisplayName}
-                  stats={stats}
-                />
-                {account.isAdmin && (
-                  <QuestionFoundationPanel
-                    account={account}
-                    adminActiveFilter={adminQuestionActive}
-                    adminCategoryFilter={adminQuestionCategory}
-                    adminLevelFilter={adminQuestionLevel}
-                    adminMinReports={adminQuestionMinReports}
-                    adminSearch={adminQuestionSearch}
-                    adminSummary={adminQuestionSummary}
-                    busy={busy}
-                    onLoadAdminReports={loadAdminReports}
-                    onLoadQuestion={loadQuestion}
-                    onAdminActiveFilterChange={setAdminQuestionActive}
-                    onAdminCategoryFilterChange={setAdminQuestionCategory}
-                    onAdminLevelFilterChange={setAdminQuestionLevel}
-                    onAdminMinReportsChange={setAdminQuestionMinReports}
-                    onAdminSearchChange={setAdminQuestionSearch}
-                    onQuestionLevelChange={setQuestionLevel}
-                    onReportReasonChange={setReportReason}
-                    onSubmitQuestionReport={submitQuestionReport}
-                    onToggleQuestionActive={toggleAdminQuestion}
-                    question={question}
-                    questionLevel={questionLevel}
-                    reportReason={reportReason}
-                    reportedQuestions={reportedQuestions}
-                  />
-                )}
-              </div>
-            ) : (
-              <div className="grid gap-4 lg:grid-cols-[1fr_154px]">
-                <div className="grid gap-4">
-                  <AccountPanel
+            </section>
+          ) : (
+            <>
+              <BrandIntro />
+
+              <section
+                aria-label="Current player screen"
+                className="relative border border-[#244b91] bg-[#040b19]/90 p-4 shadow-[14px_14px_0_rgba(214,161,50,0.18),0_0_60px_rgba(21,58,122,0.3)] sm:p-5"
+                id="account-panel"
+              >
+                <div className="absolute -inset-px -z-10 bg-gradient-to-br from-[#f6d37a]/40 via-transparent to-[#2457b7]/50 blur-xl" />
+                {!account ? (
+                  <LoggedOutScreen
                     activePanel={activePanel}
                     busy={busy}
                     loginPin={loginPin}
                     loginUsername={loginUsername}
+                    onBack={() => {
+                      setActivePanel("welcome");
+                      setMessage("");
+                    }}
                     onLoginPinChange={setLoginPin}
                     onLoginUsernameChange={setLoginUsername}
+                    onSelectPanel={(panel) => {
+                      setActivePanel(panel);
+                      setMessage("");
+                    }}
                     onSignupDisplayNameChange={setSignupDisplayName}
                     onSignupPinChange={setSignupPin}
                     onSignupUsernameChange={setSignupUsername}
@@ -1552,36 +1431,288 @@ export function FinalAnswerApp() {
                     submitLogin={submitLogin}
                     submitSignup={submitSignup}
                   />
-                  <FastestFingerPreview />
-                </div>
-                <LadderPanel />
-              </div>
-            )}
-          </section>
-        </div>
-      </section>
+                ) : activePanel === "create-room" || activePanel === "join-room" ? (
+                  <RoomActionPanel
+                    account={account}
+                    activePanel={activePanel}
+                    busy={busy}
+                    joinCode={joinCode}
+                    onCancel={() => {
+                      setActivePanel("home");
+                      setMessage("");
+                    }}
+                    onCreateRoom={createRoom}
+                    onJoinCodeChange={setJoinCode}
+                    onJoinRoom={joinRoom}
+                    onPlayerCountChange={setRoomPlayerCount}
+                    playerCount={roomPlayerCount}
+                  />
+                ) : (
+                  <LoggedInHome
+                    account={account}
+                    busy={busy}
+                    displayNameDraft={displayNameDraft}
+                    joinedDate={joinedDate}
+                    onDisplayNameChange={setDisplayNameDraft}
+                    onLogout={logout}
+                    onOpenAdmin={() => setShowAdminTools((value) => !value)}
+                    onSelectPanel={(panel) => {
+                      setActivePanel(panel);
+                      setShowAdminTools(false);
+                      setMessage("");
+                    }}
+                    onSubmitDisplayName={submitDisplayName}
+                    showAdminTools={showAdminTools}
+                    stats={stats}
+                  />
+                )}
 
-      <section
-        className="border-y border-[#244b91]/70 bg-[#050c1a] px-4 py-10 sm:px-6 lg:px-8"
-        id="milestone-preview"
-      >
-        <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-3">
-          {featurePanels.map((panel) => (
-            <article
-              className="border border-[#244b91] bg-[#071a3d] p-5 shadow-[0_0_30px_rgba(3,8,17,0.25)]"
-              key={panel.title}
-            >
-              <h2 className="text-xl font-black text-[#f6d37a]">
-                {panel.title}
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-blue-100/78">
-                {panel.text}
-              </p>
-            </article>
-          ))}
+                <StatusMessage
+                  configured={configured}
+                  message={message}
+                  missingSetup={missingSetup}
+                />
+
+                {account?.isAdmin && showAdminTools && !room && (
+                  <div className="mt-4">
+                    <QuestionFoundationPanel
+                      account={account}
+                      adminActiveFilter={adminQuestionActive}
+                      adminCategoryFilter={adminQuestionCategory}
+                      adminLevelFilter={adminQuestionLevel}
+                      adminMinReports={adminQuestionMinReports}
+                      adminSearch={adminQuestionSearch}
+                      adminSummary={adminQuestionSummary}
+                      busy={busy}
+                      onLoadAdminReports={loadAdminReports}
+                      onLoadQuestion={loadQuestion}
+                      onAdminActiveFilterChange={setAdminQuestionActive}
+                      onAdminCategoryFilterChange={setAdminQuestionCategory}
+                      onAdminLevelFilterChange={setAdminQuestionLevel}
+                      onAdminMinReportsChange={setAdminQuestionMinReports}
+                      onAdminSearchChange={setAdminQuestionSearch}
+                      onQuestionLevelChange={setQuestionLevel}
+                      onReportReasonChange={setReportReason}
+                      onSubmitQuestionReport={submitQuestionReport}
+                      onToggleQuestionActive={toggleAdminQuestion}
+                      question={question}
+                      questionLevel={questionLevel}
+                      reportReason={reportReason}
+                      reportedQuestions={reportedQuestions}
+                    />
+                  </div>
+                )}
+              </section>
+            </>
+          )}
         </div>
       </section>
     </main>
+  );
+}
+
+function BrandIntro() {
+  return (
+    <section className="max-w-3xl">
+      <p className="text-xs font-black uppercase tracking-[0.32em] text-[#f6d37a]">
+        Original private quiz game
+      </p>
+      <h1 className="mt-5 text-5xl font-black leading-[0.91] tracking-normal text-white sm:text-7xl lg:text-8xl">
+        Final Answer
+      </h1>
+      <p className="mt-6 max-w-2xl text-lg leading-8 text-blue-100/86 sm:text-xl">
+        A polished browser quiz night for friends and family. Create a private
+        room, share the code, race through Fastest Finger, then take the Hot
+        Seat under the lights.
+      </p>
+    </section>
+  );
+}
+
+function StatusMessage(props: {
+  configured: boolean | null;
+  message: string;
+  missingSetup: string[];
+}) {
+  if (!props.message && props.configured !== false) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 grid gap-3">
+      {props.message && (
+        <div className="border border-[#f6d37a]/35 bg-[#061733]/92 p-4 text-sm font-bold leading-6 text-blue-100">
+          {props.message}
+        </div>
+      )}
+
+      {props.configured === false && (
+        <div className="border border-[#ff5e5e]/45 bg-[#320f18]/85 p-4 text-sm leading-6 text-red-50">
+          <p className="font-black text-white">
+            Supabase setup required before accounts can save.
+          </p>
+          <p className="mt-2">
+            Missing:{" "}
+            <span className="font-mono text-[#f6d37a]">
+              {props.missingSetup.join(", ") || "Supabase environment variables"}
+            </span>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LoggedOutScreen(props: {
+  activePanel: Panel;
+  busy: boolean;
+  loginPin: string;
+  loginUsername: string;
+  onBack: () => void;
+  onLoginPinChange: (value: string) => void;
+  onLoginUsernameChange: (value: string) => void;
+  onSelectPanel: (panel: Panel) => void;
+  onSignupDisplayNameChange: (value: string) => void;
+  onSignupPinChange: (value: string) => void;
+  onSignupUsernameChange: (value: string) => void;
+  signupDisplayName: string;
+  signupPin: string;
+  signupUsername: string;
+  submitLogin: (event: FormEvent<HTMLFormElement>) => void;
+  submitSignup: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  if (props.activePanel === "signup" || props.activePanel === "login") {
+    return (
+      <div className="grid gap-4">
+        <AccountPanel
+          activePanel={props.activePanel}
+          busy={props.busy}
+          loginPin={props.loginPin}
+          loginUsername={props.loginUsername}
+          onLoginPinChange={props.onLoginPinChange}
+          onLoginUsernameChange={props.onLoginUsernameChange}
+          onSignupDisplayNameChange={props.onSignupDisplayNameChange}
+          onSignupPinChange={props.onSignupPinChange}
+          onSignupUsernameChange={props.onSignupUsernameChange}
+          signupDisplayName={props.signupDisplayName}
+          signupPin={props.signupPin}
+          signupUsername={props.signupUsername}
+          submitLogin={props.submitLogin}
+          submitSignup={props.submitSignup}
+        />
+        <button
+          className="border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+          disabled={props.busy}
+          onClick={props.onBack}
+          type="button"
+        >
+          Back
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-[#244b91] bg-[#061a3e] p-4">
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+        Start here
+      </p>
+      <h2 className="mt-3 text-3xl font-black">Play with a private room code</h2>
+      <p className="mt-3 text-sm font-bold leading-6 text-blue-100/76">
+        Create an account or log in with your username and 4-digit PIN. Rooms
+        unlock after you are signed in.
+      </p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <button
+          className="border border-[#f6d37a] bg-[#f6d37a] px-5 py-4 text-left font-black text-[#071225]"
+          disabled={props.busy}
+          onClick={() => props.onSelectPanel("signup")}
+          type="button"
+        >
+          Create Account
+        </button>
+        <button
+          className="border border-[#244b91] bg-[#0d2450]/80 px-5 py-4 text-left font-black text-blue-50"
+          disabled={props.busy}
+          onClick={() => props.onSelectPanel("login")}
+          type="button"
+        >
+          Log In
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LoggedInHome(props: {
+  account: Account;
+  busy: boolean;
+  displayNameDraft: string;
+  joinedDate: string;
+  onDisplayNameChange: (value: string) => void;
+  onLogout: () => void;
+  onOpenAdmin: () => void;
+  onSelectPanel: (panel: Panel) => void;
+  onSubmitDisplayName: (event: FormEvent<HTMLFormElement>) => void;
+  showAdminTools: boolean;
+  stats: AccountStats;
+}) {
+  return (
+    <div className="grid gap-4">
+      <ProfilePanel
+        account={props.account}
+        busy={props.busy}
+        displayNameDraft={props.displayNameDraft}
+        joinedDate={props.joinedDate}
+        onDisplayNameChange={props.onDisplayNameChange}
+        onSubmitDisplayName={props.onSubmitDisplayName}
+        stats={props.stats}
+      />
+
+      <div className="border border-[#244b91] bg-[#061a3e] p-4">
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
+          Game room
+        </p>
+        <h2 className="mt-3 text-2xl font-black">Choose your next move</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <button
+            className="border border-[#f6d37a] bg-[#f6d37a] px-5 py-4 text-left font-black text-[#071225]"
+            disabled={props.busy}
+            onClick={() => props.onSelectPanel("create-room")}
+            type="button"
+          >
+            Create Room
+          </button>
+          <button
+            className="border border-[#244b91] bg-[#0d2450]/80 px-5 py-4 text-left font-black text-blue-50"
+            disabled={props.busy}
+            onClick={() => props.onSelectPanel("join-room")}
+            type="button"
+          >
+            Join Room
+          </button>
+        </div>
+        <button
+          className="mt-3 w-full border border-[#ff5e5e]/70 bg-[#320f18]/85 px-4 py-3 font-black text-red-50"
+          disabled={props.busy}
+          onClick={props.onLogout}
+          type="button"
+        >
+          Log Out
+        </button>
+      </div>
+
+      {props.account.isAdmin && (
+        <button
+          className="border border-[#f6d37a]/45 bg-[#0d2450]/80 px-4 py-3 text-sm font-black text-[#f6d37a]"
+          disabled={props.busy}
+          onClick={props.onOpenAdmin}
+          type="button"
+        >
+          {props.showAdminTools ? "Hide Admin Tools" : "Open Admin Tools"}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -1590,6 +1721,7 @@ function RoomActionPanel(props: {
   activePanel: Panel;
   busy: boolean;
   joinCode: string;
+  onCancel: () => void;
   onCreateRoom: (event: FormEvent<HTMLFormElement>) => void;
   onJoinCodeChange: (value: string) => void;
   onJoinRoom: (event: FormEvent<HTMLFormElement>) => void;
@@ -1639,6 +1771,14 @@ function RoomActionPanel(props: {
         >
           Join Room
         </button>
+        <button
+          className="mt-3 w-full border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+          disabled={props.busy}
+          onClick={props.onCancel}
+          type="button"
+        >
+          Cancel
+        </button>
       </form>
     );
   }
@@ -1674,6 +1814,14 @@ function RoomActionPanel(props: {
         type="submit"
       >
         Create Room
+      </button>
+      <button
+        className="mt-3 w-full border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
+        disabled={props.busy}
+        onClick={props.onCancel}
+        type="button"
+      >
+        Cancel
       </button>
     </form>
   );
@@ -1718,7 +1866,80 @@ function RoomLobby(props: {
   timerNow: number;
 }) {
   const activePlayers = props.room.players.filter((player) => !player.leftAt);
+  const hostPlayer = props.room.players.find(
+    (player) => player.accountId === props.room.hostAccountId,
+  );
   const waiting = props.room.status === "waiting";
+
+  if (props.room.status === "completed") {
+    return (
+      <FinalResultsPanel
+        busy={props.busy}
+        onRefresh={props.onRefreshResults}
+        onReturnHome={props.onReturnHome}
+        results={props.gameResults}
+        roomCode={props.room.code}
+      />
+    );
+  }
+
+  if (props.room.status === "fastest_finger") {
+    return (
+      <div className="grid gap-4">
+        <GameStatusStrip
+          hostName={hostPlayer?.displayName ?? "Host"}
+          playerCount={activePlayers.length}
+          roomCode={props.room.code}
+          status="Fastest Finger"
+        />
+        <FastestFingerPanel
+          busy={props.busy}
+          fastestFinger={props.fastestFinger}
+          order={props.fastestFingerOrder}
+          onRefresh={props.onRefreshFastestFinger}
+          onSubmit={props.onSubmitFastestFinger}
+          onUpdateOrder={props.onUpdateFastestFingerOrder}
+          timerNow={props.timerNow}
+        />
+      </div>
+    );
+  }
+
+  if (props.room.status === "hot_seat") {
+    return (
+      <div className="grid gap-4">
+        <GameStatusStrip
+          hostName={hostPlayer?.displayName ?? "Host"}
+          playerCount={activePlayers.length}
+          roomCode={props.room.code}
+          status="Hot Seat"
+        />
+        <HotSeatPanel
+          account={props.account}
+          busy={props.busy}
+          confirmingAnswer={props.confirmingHotSeatAnswer}
+          confirmingPass={props.confirmingPass}
+          hotSeat={props.hotSeat}
+          reportNote={props.hotSeatReportNote}
+          reportReason={props.hotSeatReportReason}
+          onCancelAnswer={props.onCancelHotSeatAnswer}
+          onConfirmPass={props.onConfirmPass}
+          onConfirmAnswer={props.onConfirmHotSeatAnswer}
+          onContinue={props.onContinueHotSeat}
+          onRefresh={props.onRefreshHotSeat}
+          onReportNoteChange={props.onReportHotSeatNoteChange}
+          onReportQuestion={props.onReportHotSeatQuestion}
+          onReportReasonChange={props.onReportHotSeatReasonChange}
+          onSelectAnswer={props.onSelectHotSeatAnswer}
+          onTogglePassConfirm={props.onTogglePassConfirm}
+          onUseLifeline={props.onUseLifeline}
+          revealPending={props.hotSeatRevealPending}
+          selectedAnswer={props.selectedHotSeatAnswer}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4">
       <div className="border border-[#244b91] bg-[#061a3e] p-4">
@@ -1787,53 +2008,6 @@ function RoomLobby(props: {
         ))}
       </div>
 
-      {props.room.status === "fastest_finger" && (
-        <FastestFingerPanel
-          busy={props.busy}
-          fastestFinger={props.fastestFinger}
-          order={props.fastestFingerOrder}
-          onRefresh={props.onRefreshFastestFinger}
-          onSubmit={props.onSubmitFastestFinger}
-          onUpdateOrder={props.onUpdateFastestFingerOrder}
-          timerNow={props.timerNow}
-        />
-      )}
-
-      {props.room.status === "hot_seat" && (
-        <HotSeatPanel
-          account={props.account}
-          busy={props.busy}
-          confirmingAnswer={props.confirmingHotSeatAnswer}
-          confirmingPass={props.confirmingPass}
-          hotSeat={props.hotSeat}
-          reportNote={props.hotSeatReportNote}
-          reportReason={props.hotSeatReportReason}
-          onCancelAnswer={props.onCancelHotSeatAnswer}
-          onConfirmPass={props.onConfirmPass}
-          onConfirmAnswer={props.onConfirmHotSeatAnswer}
-          onContinue={props.onContinueHotSeat}
-          onRefresh={props.onRefreshHotSeat}
-          onReportNoteChange={props.onReportHotSeatNoteChange}
-          onReportQuestion={props.onReportHotSeatQuestion}
-          onReportReasonChange={props.onReportHotSeatReasonChange}
-          onSelectAnswer={props.onSelectHotSeatAnswer}
-          onTogglePassConfirm={props.onTogglePassConfirm}
-          onUseLifeline={props.onUseLifeline}
-          revealPending={props.hotSeatRevealPending}
-          selectedAnswer={props.selectedHotSeatAnswer}
-        />
-      )}
-
-      {props.room.status === "completed" && (
-        <FinalResultsPanel
-          busy={props.busy}
-          onRefresh={props.onRefreshResults}
-          onReturnHome={props.onReturnHome}
-          results={props.gameResults}
-          roomCode={props.room.code}
-        />
-      )}
-
       <div className="grid gap-2 sm:grid-cols-2">
         {waiting && props.currentPlayer && (
           <button
@@ -1860,15 +2034,7 @@ function RoomLobby(props: {
             Start Game
           </button>
         )}
-        <button
-          className="border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
-          disabled={props.busy}
-          onClick={props.onRefreshRoom}
-          type="button"
-        >
-          Refresh Room
-        </button>
-        {props.currentPlayer && props.room.status !== "completed" && (
+        {props.currentPlayer && (
           <button
             className="border border-[#ff5e5e]/70 bg-[#320f18]/85 px-4 py-3 font-black text-red-50"
             disabled={props.busy}
@@ -1891,6 +2057,31 @@ function RoomLobby(props: {
         Active players: {activePlayers.length}. Host transfer happens
         automatically if the host leaves.
       </p>
+    </div>
+  );
+}
+
+function GameStatusStrip(props: {
+  hostName: string;
+  playerCount: number;
+  roomCode: string;
+  status: string;
+}) {
+  return (
+    <div className="border border-[#244b91] bg-[#061733]/92 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f6d37a]">
+            Room {props.roomCode}
+          </p>
+          <p className="mt-1 text-sm font-bold text-blue-100/68">
+            Host: {props.hostName} | Players: {props.playerCount}
+          </p>
+        </div>
+        <span className="border border-[#f6d37a]/55 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#f6d37a]">
+          {props.status}
+        </span>
+      </div>
     </div>
   );
 }
@@ -2582,17 +2773,9 @@ function FinalResultsPanel(props: {
         </>
       )}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+      <div className="mt-4">
         <button
-          className="border border-[#244b91] bg-[#0d2450]/80 px-4 py-3 font-black text-blue-100"
-          disabled={props.busy}
-          onClick={props.onRefresh}
-          type="button"
-        >
-          Refresh Results
-        </button>
-        <button
-          className="border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225]"
+          className="w-full border border-[#f6d37a] bg-[#f6d37a] px-4 py-3 font-black text-[#071225]"
           disabled={props.busy}
           onClick={props.onReturnHome}
           type="button"
@@ -3133,51 +3316,5 @@ function QuestionFoundationPanel(props: {
         </div>
       )}
     </div>
-  );
-}
-
-function FastestFingerPreview() {
-  return (
-    <div className="border border-[#244b91] bg-[#061a3e] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#f6d37a]">
-          Fastest Finger
-        </p>
-        <span className="font-mono text-sm font-black text-white">30</span>
-      </div>
-      <div className="mt-4 h-3 overflow-hidden border border-[#f6d37a]/40 bg-[#020712]">
-        <div className="timer-flare h-full w-full" />
-      </div>
-      <p className="mt-4 text-sm font-bold text-blue-100/80">
-        Arrange the answers in the correct order before the flare reaches the
-        end.
-      </p>
-    </div>
-  );
-}
-
-function LadderPanel() {
-  return (
-    <aside className="border border-[#244b91] bg-[#050f25] p-3">
-      <p className="mb-3 text-center text-xs font-black uppercase tracking-[0.2em] text-[#f6d37a]">
-        Ladder
-      </p>
-      <ol className="grid gap-1">
-        {ladder.map((amount) => (
-          <li
-            className={`border px-2 py-1.5 text-right font-mono text-xs font-black ${
-              amount === "$1,000,000"
-                ? "border-[#f6d37a] bg-[#f6d37a] text-[#071225]"
-                : amount === "$32,000" || amount === "$1,000"
-                  ? "border-[#f6d37a]/60 bg-[#172a48] text-[#f6d37a]"
-                  : "border-[#1c3f7d] bg-[#071a3d] text-blue-100"
-            }`}
-            key={amount}
-          >
-            {amount}
-          </li>
-        ))}
-      </ol>
-    </aside>
   );
 }

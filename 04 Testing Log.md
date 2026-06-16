@@ -647,3 +647,27 @@ Browser/layout verification:
 - Desktop Playwright screenshot passed visual inspection.
 - Mobile Playwright screenshot at 390x844 passed visual inspection.
 - Vercel runtime logs during verification showed expected 200 responses and expected 400/401/403/409 guardrail responses; no fatal production runtime errors were found.
+
+## 2026-06-16 - Post-v1 UX Flow Repair
+
+Checks run so far:
+- `npm.cmd run typecheck` - first run caught an impossible old lobby status check; passed after removing it.
+- `npm.cmd run lint` - first run warned about unused old landing preview components; passed after removing them.
+- `npm.cmd run question:audit` - passed.
+- `npm.cmd run money:audit` - passed.
+- `npx.cmd next build` - passed.
+
+Local browser checks at `http://127.0.0.1:3000`:
+- Logged-out landing shows Final Answer branding, the short explanation, Create Account, and Log In.
+- Logged-out landing no longer shows Create Room, Join Room, profile, admin tools, question tools, room controls, Fastest Finger preview, or the static ladder.
+- Create Account opens a focused account form with Back.
+- Local account completion could not be tested because local Supabase secrets are intentionally not present in `.env.local`.
+
+Production checks still required:
+- Logged-in home shows only profile/stats, Create Room, Join Room, Log Out, and admin-only tools when applicable.
+- Create Room and Join Room show focused room setup screens.
+- Waiting lobby, Fastest Finger, Hot Seat, completed results, admin hiding, desktop, and mobile layout pass on `https://playsgrid.org` after deployment.
+
+Production issue found during first live verification:
+- After leaving a waiting room, a realtime refresh could reload the same room even though the player was no longer active in it.
+- Fix added: room refresh now checks whether the current account is still an active room player. If not, it clears the room/game state and returns the player to home.

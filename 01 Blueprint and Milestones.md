@@ -210,3 +210,14 @@ Implementation note:
 - Verified the live page has no old PlayGrid or BoardVerse public labels.
 - Prepared the manual family testing checklist and launch handover notes.
 - Sound effects and chat remain future improvements rather than launch blockers.
+
+### Post-v1 UX Flow Repair - In Progress 2026-06-16
+
+Goal:
+- Stop feature work and reorganize the player journey so Final Answer feels like a real online quiz game rather than a single page of mixed controls.
+
+Implementation direction:
+- Logged-out, logged-in home, create room, join room, waiting lobby, Fastest Finger, Hot Seat, completed results, and admin review each get their own focused screen state.
+- Controls are only visible when they match the current player state.
+- Existing backend APIs, Supabase schema, and core game logic stay intact.
+- Admin tools remain available only to admin accounts and hidden by default.

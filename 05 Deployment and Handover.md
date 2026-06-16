@@ -303,6 +303,19 @@ Use it as a private family beta:
 - Review reported questions after each session.
 - Keep a short list of any bugs, confusing screens, or slow moments.
 
+## Player Screen Flow
+
+The app should show only the controls that match the player's current state:
+- Logged out: Final Answer branding, short explanation, Create Account, and Log In.
+- Logged in at home: display name/profile summary, stats, Create Room, Join Room, and Log Out.
+- Create Room: player count, Create Room, and Cancel.
+- Join Room: room code, Join Room, and Cancel.
+- Waiting lobby: room code, player list, host badge, ready state, Ready/Not Ready, Leave Room, and Start Game only for the host.
+- Fastest Finger: ordering question, timer, ordering controls, submit/waiting state, and small room status.
+- Hot Seat: current question, answer buttons, money ladder, lifelines, report question, and final-answer confirmation.
+- Completed game: final rankings, winnings, and Return Home.
+- Admin tools: hidden by default and available only from an admin account's home screen.
+
 Important:
 - Do not paste Supabase keys into chat.
 - Do not put Supabase keys into code.

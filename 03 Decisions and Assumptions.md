@@ -67,6 +67,8 @@
 - Keep admin question tools basic for the MVP: admins can filter, search, review reports, deactivate, and reactivate questions, but advanced text editing is deferred.
 - Hide temporary debug and test panels from normal users for the first family-testing version.
 - Treat Milestone 11 as the first complete family-testing version unless serious bugs are found.
+- After v1.0, normal player UI must be state-based: logged-out users see only account entry, logged-in users outside a room see only home/profile and room actions, waiting rooms see only lobby controls, active gameplay screens see only that gameplay state, and completed games see only final results and return options.
+- Admin question tools stay hidden by default and only appear behind an admin-only section for accounts where `is_admin = true`.
 
 ## Open Risks
 

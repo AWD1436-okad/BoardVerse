@@ -327,3 +327,22 @@ Current recommendation:
 - Treat the app as the first complete version for family testing.
 - Use the manual checklist in `05 Deployment and Handover.md` during the first real family game session.
 - Log any confusing wording, wrong answers, or gameplay bugs and address them as small repair tasks before adding new features.
+
+## 2026-06-16 - Post-v1 UX Flow Repair
+
+Work in progress:
+- New feature work is paused.
+- The public app shell is being reorganized around the player's current state so the app feels like a real game flow instead of a developer test page.
+
+What has been changed locally:
+- Logged-out users now see only Final Answer branding, a short explanation, Create Account, and Log In.
+- Create Account and Log In forms open only after the player chooses that action.
+- Logged-in home now shows profile/stats, Create Room, Join Room, Log Out, and an admin-only Admin Tools toggle.
+- Create Room and Join Room are focused screens with Cancel, not side-by-side with account forms.
+- Waiting lobbies show room code, players, ready state, Ready, Leave Room, and host Start Game only.
+- Fastest Finger, Hot Seat, and completed results now render as separate game screens instead of sharing lobby controls.
+- The old landing feature blocks, Fastest Finger preview, and static ladder preview were removed from normal player screens.
+
+Still to verify before completion:
+- Production deployment reaches Ready.
+- Live logged-out, logged-in, room, lobby, gameplay, completed, admin-hidden, desktop, and mobile checks pass on `https://playsgrid.org`.
